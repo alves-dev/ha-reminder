@@ -1,0 +1,46 @@
+# Decision: Home Assistant Integration Architecture
+
+## Context
+
+The product needs separate reminder ownership for each person, a user-facing
+configuration workflow, a task surface, and status visibility within Home
+Assistant.
+
+## Decision
+
+Model each configured person as one Home Assistant config entry with an
+integration-owned device, one local to-do entity, and two sensor entities. Keep
+a single runtime manager as the owner of that config entry's reminder state and
+share it with the platform entities.
+
+## Rationale
+
+The implementation uses the selected person as the config-entry unique identity
+and creates all person-scoped entities under a matching integration device. This
+keeps configuration, tasks, scheduling, and diagnostics grouped without treating
+the person's existing entity as a physical device. Rationale is inferred from
+the config flow and runtime entity setup.
+
+## Alternatives Considered
+
+Alternatives are not documented in the existing codebase. Reasonable alternatives
+include one global reminder list, externally provided task lists, or one entity
+per reminder; none is selected in the implemented simple mode.
+
+## Outcomes
+
+Outcomes to be documented as the project evolves.
+
+## Related
+
+- [Project Intent](../intent/project-intent.md)
+- [Feature: Per-Person Reminder Lists](../intent/feature-per-person-reminder-lists.md)
+- [Feature: Reminder Status Visibility](../intent/feature-reminder-status.md)
+- [Feature: Reminder Configuration](../intent/feature-reminder-configuration.md)
+- [Decision: Tech Stack](001-tech-stack.md)
+
+## Status
+
+- **Created**: 2026-08-30 (Phase: Intent)
+- **Status**: Accepted
+- **Note**: Documented from existing implementation.
