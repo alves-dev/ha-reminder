@@ -2,6 +2,11 @@
 
 # 2026-08-31
 
+- Fixed the channel-test failure translation so it no longer treats the script
+  response example as an invalid Home Assistant translation placeholder.
+
+# 2026-08-31
+
 - Added a reusable script blueprint for a notification-channel delivery to one
   selected `notify` entity, including contract-compliant script responses and
   distinct manual-test messaging.

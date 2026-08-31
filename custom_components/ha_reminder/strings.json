@@ -134,7 +134,7 @@
             }
         },
         "error": {
-            "test_failed": "The script did not confirm delivery. Check its availability and that it returns {\"success\": true}."
+            "test_failed": "The script did not confirm delivery. Check its availability and that it returns a successful response."
         },
         "abort": {
             "no_channels": "No notification channels are configured."
