@@ -1,0 +1,27 @@
+interact:
+  name: Interact with an advanced reminder
+  description: Complete the active occurrence of an advanced reminder.
+  fields:
+    reminder_id:
+      name: Reminder
+      description: The advanced reminder configuration entry identifier.
+      required: true
+      selector:
+        text:
+    interaction:
+      name: Interaction
+      description: The requested interaction. Complete is currently implemented; the other values are reserved for future behavior.
+      required: true
+      selector:
+        select:
+          options:
+            - complete
+            - snooze
+            - acknowledge
+            - dismiss
+    occurrence_id:
+      name: Occurrence
+      description: Optional active occurrence identifier for stale-action protection.
+      required: false
+      selector:
+        text:
