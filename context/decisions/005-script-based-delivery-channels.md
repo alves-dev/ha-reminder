@@ -39,6 +39,7 @@ Outcomes to be documented as the project evolves.
 - [Project Intent](../intent/project-intent.md)
 - [Feature: Configurable Delivery Fallback](../intent/feature-delivery-fallback.md)
 - [Feature: Persistent Follow-Up Scheduling](../intent/feature-persistent-follow-up.md)
+- [Feature: Advanced Reminder Devices](../intent/feature-advanced-reminder-devices.md)
 - [Decision: Scheduler and Delivery Policy](004-scheduler-and-delivery-policy.md)
 
 ## Status

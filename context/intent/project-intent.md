@@ -14,11 +14,11 @@ their home, while keeping task completion in a familiar per-person list.
 
 ## Current State
 
-The initial simple-mode integration is implemented and released as version
-`2026.8.0`. It supports one reminder list per configured person, recurring
+The integration supports one reminder list per configured person, recurring
 low-priority reminders, configurable delivery handling, retained state across
-restarts, and diagnostic visibility. Advanced per-reminder configuration and
-acknowledgement or snooze actions are intentionally not included.
+restarts, and diagnostic visibility. Advanced reminder devices are approved for
+implementation; acknowledgement and snooze actions remain intentionally out of
+scope.
 
 ## Current Features
 
@@ -28,6 +28,7 @@ acknowledgement or snooze actions are intentionally not included.
 - Restart-safe reminder state
 - Reminder status visibility
 - Person and delivery settings
+- Advanced reminder devices
 
 ## Status
 

@@ -28,7 +28,9 @@ allowing in-flight work to update changed items; none is implemented.
 
 ## Outcomes
 
-Outcomes to be documented as the project evolves.
+Reminder generations are retained separately from active reminder records. This ensures that a
+completion, deletion, or reopening cannot let already-queued work match the generation of a new
+record with the same to-do item identifier.
 
 ## Related
 

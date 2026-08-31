@@ -31,13 +31,16 @@ or treating date-only items as midnight; none is selected.
 
 ## Outcomes
 
-Outcomes to be documented as the project evolves.
+After a successful initial delivery, the scheduler advances to the next progressive interval. A
+missing channel setup is a configuration-incomplete state; configured scripts that are unavailable
+remain a normal complete-delivery failure and use the retry policy.
 
 ## Related
 
 - [Project Intent](../intent/project-intent.md)
 - [Feature: Persistent Follow-Up Scheduling](../intent/feature-persistent-follow-up.md)
 - [Feature: Configurable Delivery Fallback](../intent/feature-delivery-fallback.md)
+- [Feature: Advanced Reminder Devices](../intent/feature-advanced-reminder-devices.md)
 - [Decision: Persistent Reminder Lifecycle](003-persistent-reminder-lifecycle.md)
 - [Decision: Script-Based Delivery Channels](005-script-based-delivery-channels.md)
 
