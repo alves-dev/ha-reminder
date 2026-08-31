@@ -1,0 +1,30 @@
+[project]
+name = "ha-reminder"
+version = "2026.8.0"
+description = "Persistent, script-delivered reminders for Home Assistant"
+readme = "README.md"
+requires-python = ">=3.13.2,<3.14"
+license = { text = "MIT" }
+authors = [{ name = "alves-dev" }]
+dependencies = [
+  "homeassistant==2025.12.4",
+]
+
+[dependency-groups]
+dev = [
+  "pytest-homeassistant-custom-component==0.13.301",
+  "pytest-cov>=6.0",
+  "ruff>=0.12",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+ignore = ["E501"]

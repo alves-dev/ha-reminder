@@ -1,0 +1,10 @@
+# Changelog
+
+All user-relevant changes are documented in this file.
+
+## [2026.8.0] - 2026-08-30
+
+### Added
+
+- Advanced reminder devices with one-time and recurring schedules, recipient-specific delivery cycles, logical-device entities, and idempotent completion actions.
+- Initial simple-mode HA Reminder integration with local to-do lists, persistent schedules, script delivery, fallback, quiet hours, and diagnostic sensors.
