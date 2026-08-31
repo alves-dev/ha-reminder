@@ -233,7 +233,8 @@ class OptionsFlow(config_entries.OptionsFlow):
         if self.config_entry.data.get(CONF_ENTRY_TYPE) == ENTRY_TYPE_ADVANCED:
             return await self.async_step_advanced()
         return self.async_show_menu(
-            step_id="init", menu_options=["person", "add_channel", "edit_channel", "remove_channel"]
+            step_id="init",
+            menu_options=["person", "add_channel", "edit_channel", "test_channel", "remove_channel"],
         )
 
     async def async_step_person(self, user_input: dict[str, Any] | None = None) -> config_entries.FlowResult:
@@ -349,3 +350,47 @@ class OptionsFlow(config_entries.OptionsFlow):
         return self.async_show_form(step_id="remove_channel", data_schema=vol.Schema({
             vol.Required("channel_id"): selector.SelectSelector(selector.SelectSelectorConfig(options=[selector.SelectOptionDict(value=item["id"], label=item["name"]) for item in channels]))
         }))
+
+    async def async_step_test_channel(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.FlowResult:
+        """Invoke exactly one configured channel without creating a reminder."""
+        channels = self._current.get(CONF_CHANNELS, [])
+        if not channels:
+            return self.async_abort(reason="no_channels")
+
+        result = "Not run yet."
+        errors: dict[str, str] = {}
+        selected_channel_id = None
+        if user_input:
+            selected_channel_id = user_input["channel_id"]
+            success = await self.config_entry.runtime_data.async_test_channel(selected_channel_id)
+            if success:
+                result = "Success: the script confirmed delivery."
+            else:
+                result = "Failed: the script did not confirm delivery."
+                errors["base"] = "test_failed"
+
+        channel_field = (
+            vol.Required("channel_id", default=selected_channel_id)
+            if selected_channel_id
+            else vol.Required("channel_id")
+        )
+
+        return self.async_show_form(
+            step_id="test_channel",
+            data_schema=vol.Schema(
+                {
+                    channel_field: selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=[
+                                selector.SelectOptionDict(value=item["id"], label=item["name"])
+                                for item in channels
+                            ]
+                        )
+                    )
+                }
+            ),
+            errors=errors,
+            description_placeholders={"result": result},
+        )

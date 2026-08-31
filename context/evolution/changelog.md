@@ -1,5 +1,17 @@
 # Changelog
 
+# 2026-08-31
+
+- Added a reusable script blueprint for a notification-channel delivery to one
+  selected `notify` entity, including contract-compliant script responses and
+  distinct manual-test messaging.
+
+# 2026-08-30
+
+- Added a direct notification-channel test in person settings. It invokes only
+  the selected script with `is_test: true`, reports the contract result, and
+  leaves reminder scheduling and fallback unchanged.
+
 # 2026-08-30
 
 - Refreshed the Home Assistant branding assets with complete light and dark reminder icon and logo variants.

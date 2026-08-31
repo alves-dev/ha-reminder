@@ -25,9 +25,11 @@ scope.
 - Per-person reminder lists
 - Persistent follow-up scheduling
 - Configurable delivery channels and fallback
+- Ready-to-configure notification-channel blueprint
 - Restart-safe reminder state
 - Reminder status visibility
 - Person and delivery settings
+- Delivery channel testing
 - Advanced reminder devices
 
 ## Status

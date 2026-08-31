@@ -66,6 +66,7 @@
                     "person": "Person settings",
                     "add_channel": "Add notification channel",
                     "edit_channel": "Edit notification channel",
+                    "test_channel": "Test notification channel",
                     "remove_channel": "Remove notification channel"
                 }
             },
@@ -124,7 +125,16 @@
                 "data": {
                     "channel_id": "Channel"
                 }
+            },
+            "test_channel": {
+                "description": "Runs only the selected script. It does not create or change reminders, schedules, or fallback. {result}",
+                "data": {
+                    "channel_id": "Notification channel"
+                }
             }
+        },
+        "error": {
+            "test_failed": "The script did not confirm delivery. Check its availability and that it returns {\"success\": true}."
         },
         "abort": {
             "no_channels": "No notification channels are configured."

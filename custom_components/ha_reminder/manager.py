@@ -342,6 +342,46 @@ class ReminderManager:
                     return True, channel["id"]
         return False, None
 
+    async def async_test_channel(self, channel_id: str) -> bool:
+        """Send one isolated test through a configured channel.
+
+        A test deliberately bypasses reminder state, quiet hours, and fallback
+        dispatch. It still shares the selected channel's lock, cooldown,
+        timeout, and response validation with regular delivery.
+        """
+        channel = next(
+            (item for item in self.data.get(CONF_CHANNELS, []) if item["id"] == channel_id),
+            None,
+        )
+        state = self.hass.states.get(channel["script_entity_id"]) if channel else None
+        if channel is None or self._stopped or state is None or state.state == STATE_UNAVAILABLE:
+            return False
+        priority = next(
+            (
+                int(item.get("priority", 1))
+                for item in self.data.get(CONF_ASSIGNMENTS, [])
+                if item.get("person_entity_id") == self.person_entity_id
+                and item.get("channel_id") == channel_id
+            ),
+            1,
+        )
+        now = dt_util.utcnow().isoformat()
+        payload = {
+            "reminder_id": f"test-{uuid4()}",
+            "person_entity_id": self.person_entity_id,
+            "todo_entity_id": self.todo.entity_id,
+            "todo_item_uid": None,
+            "title": "HA Reminder channel test",
+            "description": "This is a manual notification-channel test.",
+            "level": "low",
+            "attempt": 1,
+            "channel_priority": priority,
+            "created_at": now,
+            "due_at": None,
+            "is_test": True,
+        }
+        return await self._async_invoke_channel({**channel, "priority": priority}, payload)
+
     async def _async_call_channel(
         self, reminder: Reminder, channel: dict[str, Any]
     ) -> bool | None:
@@ -373,28 +413,53 @@ class ReminderManager:
                 "created_at": reminder.created_at,
                 "due_at": reminder.due,
             }
-            try:
-                self._channel_last_call[channel_id] = dt_util.utcnow()
-                response = await asyncio.wait_for(
-                    self.hass.services.async_call(
-                        "script",
-                        "turn_on",
-                        {"entity_id": channel["script_entity_id"], "variables": payload},
-                        blocking=True,
-                        return_response=True,
-                    ),
-                    timeout=CHANNEL_TIMEOUT.total_seconds(),
-                )
-            except (TimeoutError, Exception) as err:  # script errors are delivery failures
-                _LOGGER.warning("Reminder channel %s failed: %s", channel_id, type(err).__name__)
-                return False
-            valid = isinstance(response, dict) and isinstance(response.get("success"), bool)
-            if not valid or not response["success"]:
-                _LOGGER.warning(
-                    "Reminder channel %s returned an invalid or failed response", channel_id
-                )
-                return False
-            return True
+            return await self._async_invoke_channel(channel, payload, lock_held=True)
+
+    async def _async_invoke_channel(
+        self,
+        channel: dict[str, Any],
+        payload: dict[str, Any],
+        *,
+        lock_held: bool = False,
+    ) -> bool:
+        """Run a channel script and validate its response contract."""
+        if lock_held:
+            return await self._async_call_channel_script(channel, payload)
+        channel_id = channel["id"]
+        async with self._channel_locks[channel_id]:
+            last = self._channel_last_call.get(channel_id)
+            if last:
+                delay = CHANNEL_COOLDOWN - (dt_util.utcnow() - last)
+                if delay.total_seconds() > 0:
+                    _LOGGER.debug("Channel %s queued by cooldown", channel_id)
+                    await asyncio.sleep(delay.total_seconds())
+            return await self._async_call_channel_script(channel, payload)
+
+    async def _async_call_channel_script(
+        self, channel: dict[str, Any], payload: dict[str, Any]
+    ) -> bool:
+        """Call one script and return whether it explicitly confirmed success."""
+        channel_id = channel["id"]
+        try:
+            self._channel_last_call[channel_id] = dt_util.utcnow()
+            response = await asyncio.wait_for(
+                self.hass.services.async_call(
+                    "script",
+                    "turn_on",
+                    {"entity_id": channel["script_entity_id"], "variables": payload},
+                    blocking=True,
+                    return_response=True,
+                ),
+                timeout=CHANNEL_TIMEOUT.total_seconds(),
+            )
+        except (TimeoutError, Exception) as err:  # Script errors are delivery failures.
+            _LOGGER.warning("Reminder channel %s failed: %s", channel_id, type(err).__name__)
+            return False
+        valid = isinstance(response, dict) and isinstance(response.get("success"), bool)
+        if not valid or not response["success"]:
+            _LOGGER.warning("Reminder channel %s returned an invalid or failed response", channel_id)
+            return False
+        return True
 
     def _in_quiet_hours(self, now: datetime) -> bool:
         start = time.fromisoformat(self.data.get(CONF_QUIET_START, "22:00"))

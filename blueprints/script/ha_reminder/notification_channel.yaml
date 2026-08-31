@@ -1,0 +1,54 @@
+blueprint:
+  name: HA Reminder notification channel
+  description: >-
+    Sends HA Reminder deliveries to one selected notification entity and returns
+    the success response required by the integration.
+  domain: script
+  input:
+    notify_target:
+      name: Notification target
+      description: The notify entity that receives this person's reminders.
+      selector:
+        entity:
+          filter:
+            - domain: notify
+
+fields:
+  title:
+    name: Reminder title
+    description: Supplied by HA Reminder.
+    required: true
+    selector:
+      text:
+  description:
+    name: Reminder details
+    description: Optional details supplied by HA Reminder.
+    required: false
+    selector:
+      text:
+        multiline: true
+  is_test:
+    name: Channel test
+    description: Supplied by HA Reminder when testing a configured channel.
+    required: false
+    selector:
+      boolean:
+
+mode: queued
+max: 10
+
+sequence:
+  - action: notify.send_message
+    target:
+      entity_id: !input notify_target
+    data:
+      title: "{{ '[Test] ' if is_test | default(false, true) else '' }}{{ title | default('HA Reminder', true) }}"
+      message: >-
+        {{ 'This is a HA Reminder notification-channel test.'
+          if (is_test | default(false, true))
+          else (description | default('You have a pending reminder.', true)) }}
+  - variables:
+      response:
+        success: true
+  - stop: Notification accepted by the selected notify entity.
+    response_variable: response

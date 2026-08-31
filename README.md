@@ -27,11 +27,14 @@ Add **HA Reminder** from Settings → Devices & services and choose **Person** t
 
 Create pending items in that to-do list as usual. Completing or deleting an item stops its future deliveries. Configure notification channels through the integration options; each channel is a `script.*` that receives the documented payload and returns `{success: true}` when it has dispatched the message.
 
+For a standard phone or other `notify.*` entity, import the included [notification-channel script blueprint](blueprints/script/ha_reminder/notification_channel.yaml), create a script from it, and select the notification target. Then add that generated `script.*` as a channel in the person's HA Reminder options. The script marks a manual channel test with `is_test: true` and returns the required response after Home Assistant accepts the notification action.
+
 Choose **Advanced reminder** to create a device for a one-time or recurring household reminder. Select recipients from the people already configured in HA Reminder, define its priority and schedule, then use its enable switch and status sensors. Call `ha_reminder.interact` with `interaction: complete` to complete the active occurrence from an automation, script, actionable notification, or another Home Assistant surface. Snooze and acknowledgement actions are reserved for a future release.
 
 ## Technical documentation
 
 - [Channel contract and scheduling behavior](docs/architecture.md)
+- [Notification-channel script blueprint](blueprints/script/ha_reminder/notification_channel.yaml)
 - [Compatibility](docs/compatibility.md)
 - [Development and validation](docs/development.md)
 - [Changelog](CHANGELOG.md)

@@ -23,6 +23,7 @@ lets users tailor follow-up without changing the task workflow itself.
 - [Project Intent](project-intent.md)
 - [Decision: Home Assistant Integration Architecture](../decisions/002-home-assistant-integration-architecture.md)
 - [Pattern: Configuration Normalization and Validation](../knowledge/patterns/configuration-normalization-and-validation.md)
+- [Feature: Delivery Channel Testing](feature-delivery-channel-testing.md)
 
 ## Status
 

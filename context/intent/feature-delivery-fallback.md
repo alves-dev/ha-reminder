@@ -19,15 +19,19 @@ notification destinations they already rely on.
 - [x] A failed or unconfirmed attempt moves on to an alternative route.
 - [x] Equally preferred routes rotate across attempts.
 - [x] A route is not invoked too frequently when shared.
+- [x] Users can create a ready-to-configure script channel that delivers to one
+  selected notification target.
 
 ## Related
 
 - [Project Intent](project-intent.md)
 - [Decision: Script-Based Delivery Channels](../decisions/005-script-based-delivery-channels.md)
+- [Blueprint: Notification Channel](../../blueprints/script/ha_reminder/notification_channel.yaml)
+- [Feature: Delivery Channel Testing](feature-delivery-channel-testing.md)
 - [Decision: Scheduler and Delivery Policy](../decisions/004-scheduler-and-delivery-policy.md)
 - [Pattern: Priority Fallback Channel Dispatch](../knowledge/patterns/priority-fallback-channel-dispatch.md)
 
 ## Status
 
 - **Created**: 2026-08-30 (Phase: Intent)
-- **Status**: Active (already implemented)
+- **Status**: Active

@@ -2,7 +2,7 @@
 
 from datetime import date, datetime, timedelta
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from homeassistant.const import STATE_UNAVAILABLE
@@ -159,6 +159,65 @@ async def test_unavailable_configured_channel_uses_delivery_retry(hass: HomeAssi
     assert reminder.delivery_retry_count == 1
     assert (reminder.next_at - before).total_seconds() >= 299
     manager._async_try_channels.assert_awaited_once_with(reminder, [])
+
+
+@pytest.mark.asyncio
+async def test_channel_test_calls_only_selected_script_without_changing_reminders(
+    hass: HomeAssistant,
+) -> None:
+    """A manual channel test uses the script contract without delivery side effects."""
+    manager = _manager(hass)
+    reminder = _reminder()
+    manager.reminders[reminder.item_uid] = reminder
+    reminder_snapshot = reminder.as_dict()
+    hass.states.async_set("script.reminder_mobile_igor", "off")
+
+    with patch.object(
+        type(hass.services), "async_call", new=AsyncMock(return_value={"success": True})
+    ) as async_call:
+        assert await manager.async_test_channel("mobile")
+
+    async_call.assert_awaited_once()
+    service_data = async_call.await_args.args[-1]
+    assert service_data["entity_id"] == "script.reminder_mobile_igor"
+    payload = service_data["variables"]
+    assert payload["reminder_id"].startswith("test-")
+    assert payload["person_entity_id"] == "person.igor"
+    assert payload["todo_entity_id"] == "todo.reminders_igor"
+    assert payload["todo_item_uid"] is None
+    assert payload["title"] == "HA Reminder channel test"
+    assert payload["description"] == "This is a manual notification-channel test."
+    assert payload["level"] == "low"
+    assert payload["attempt"] == 1
+    assert payload["channel_priority"] == 1
+    assert payload["created_at"]
+    assert payload["due_at"] is None
+    assert payload["is_test"] is True
+    assert reminder.as_dict() == reminder_snapshot
+
+
+@pytest.mark.asyncio
+async def test_channel_test_rejects_an_unavailable_script(hass: HomeAssistant) -> None:
+    """An unavailable script is reported as a failed test without invoking it."""
+    manager = _manager(hass)
+    hass.states.async_set("script.reminder_mobile_igor", STATE_UNAVAILABLE)
+
+    with patch.object(type(hass.services), "async_call", new=AsyncMock()) as async_call:
+        assert not await manager.async_test_channel("mobile")
+
+    async_call.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_channel_test_requires_a_success_response(hass: HomeAssistant) -> None:
+    """A script response without a successful contract result fails the test."""
+    manager = _manager(hass)
+    hass.states.async_set("script.reminder_mobile_igor", "off")
+
+    with patch.object(
+        type(hass.services), "async_call", new=AsyncMock(return_value={})
+    ):
+        assert not await manager.async_test_channel("mobile")
 
 
 @pytest.mark.asyncio

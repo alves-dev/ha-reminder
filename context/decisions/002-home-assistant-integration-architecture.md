@@ -37,6 +37,7 @@ Outcomes to be documented as the project evolves.
 - [Feature: Per-Person Reminder Lists](../intent/feature-per-person-reminder-lists.md)
 - [Feature: Reminder Status Visibility](../intent/feature-reminder-status.md)
 - [Feature: Reminder Configuration](../intent/feature-reminder-configuration.md)
+- [Feature: Delivery Channel Testing](../intent/feature-delivery-channel-testing.md)
 - [Feature: Advanced Reminder Devices](../intent/feature-advanced-reminder-devices.md)
 - [Decision: Tech Stack](001-tech-stack.md)
 - [Decision: Advanced Reminder Runtime Architecture](006-advanced-reminder-runtime-architecture.md)
