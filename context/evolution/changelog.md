@@ -2,6 +2,10 @@
 
 # 2026-08-30
 
+- Refreshed the Home Assistant branding assets with complete light and dark reminder icon and logo variants.
+
+# 2026-08-30
+
 - Replaced technical configuration values with human-readable labels and added contextual form
   descriptions for timing, recurrence, delivery channels, and destructive channel removal.
 
