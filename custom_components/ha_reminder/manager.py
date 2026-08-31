@@ -445,8 +445,8 @@ class ReminderManager:
             response = await asyncio.wait_for(
                 self.hass.services.async_call(
                     "script",
-                    "turn_on",
-                    {"entity_id": channel["script_entity_id"], "variables": payload},
+                    channel["script_entity_id"].split(".", maxsplit=1)[1],
+                    payload,
                     blocking=True,
                     return_response=True,
                 ),

@@ -471,7 +471,9 @@ class AdvancedReminderManager:
                 self._channel_last_call[channel_id] = dt_util.utcnow()
                 response = await asyncio.wait_for(
                     self.hass.services.async_call(
-                        "script", "turn_on", {"entity_id": channel["script_entity_id"], "variables": payload},
+                        "script",
+                        channel["script_entity_id"].split(".", maxsplit=1)[1],
+                        payload,
                         blocking=True, return_response=True,
                     ), timeout=CHANNEL_TIMEOUT.total_seconds(),
                 )

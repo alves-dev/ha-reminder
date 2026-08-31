@@ -208,9 +208,8 @@ async def test_channel_test_calls_only_selected_script_without_changing_reminder
         assert await manager.async_test_channel("mobile")
 
     async_call.assert_awaited_once()
-    service_data = async_call.await_args.args[-1]
-    assert service_data["entity_id"] == "script.reminder_mobile_igor"
-    payload = service_data["variables"]
+    assert async_call.await_args.args[:2] == ("script", "reminder_mobile_igor")
+    payload = async_call.await_args.args[-1]
     assert payload["reminder_id"].startswith("test-")
     assert payload["person_entity_id"] == "person.igor"
     assert payload["todo_entity_id"] == "todo.reminders_igor"
@@ -248,6 +247,36 @@ async def test_channel_test_requires_a_success_response(hass: HomeAssistant) -> 
         type(hass.services), "async_call", new=AsyncMock(return_value={})
     ):
         assert not await manager.async_test_channel("mobile")
+
+
+@pytest.mark.asyncio
+async def test_advanced_delivery_calls_the_response_capable_script_service(
+    hass: HomeAssistant,
+) -> None:
+    """Advanced reminders call the named script service to receive its response."""
+    manager = _advanced_manager(hass)
+    now = dt_util.utcnow().isoformat()
+    manager.store.data = {
+        "active": {
+            "occurrence_id": "occurrence-1",
+            "generation": 1,
+            "scheduled_at": now,
+            "recipients": {"person.igor": {"retries": 0}},
+        }
+    }
+    channel = {
+        "id": "mobile",
+        "script_entity_id": "script.reminder_mobile_igor",
+        "priority": 1,
+    }
+
+    with patch.object(
+        type(hass.services), "async_call", new=AsyncMock(return_value={"success": True})
+    ) as async_call:
+        assert await manager._async_call_channel("person.igor", {}, 1, channel)
+
+    assert async_call.await_args.args[:2] == ("script", "reminder_mobile_igor")
+    assert async_call.await_args.args[-1]["reminder_id"] == "occurrence-1"
 
 
 @pytest.mark.asyncio

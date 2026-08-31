@@ -15,6 +15,10 @@ channels by priority, rotate equal-priority channels, try lower-priority groups
 after failures, limit each call to five seconds, and globally serialize calls to
 a shared channel with a five-second cooldown.
 
+Call the script's own service name, derived from its `script.*` entity ID, when
+waiting for the response. Do not call `script.turn_on`: that action starts work
+in the background and cannot return the script's response mapping.
+
 Provide a script blueprint for the standard case of sending to a selected
 `notify` entity. The blueprint renders the reminder payload, marks manual
 tests, and returns `success: true` only after Home Assistant accepts the notify
@@ -45,6 +49,10 @@ The bundled script blueprint selects one notify entity, displays a distinct
 manual-test notification, and returns the required boolean response after Home
 Assistant accepts the notification action. YAML parsing, the full unit suite,
 lint, compilation, and integration-structure validation pass.
+
+Both person and advanced dispatchers call the response-capable named script
+service rather than `script.turn_on`, so the channel contract is received by
+the integration.
 
 ## Related
 

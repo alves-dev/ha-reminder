@@ -2,6 +2,12 @@
 
 # 2026-08-31
 
+- Fixed channel delivery to call each script's response-capable named service
+  instead of `script.turn_on`; this enables the required `success` response for
+  person and advanced reminders.
+
+# 2026-08-31
+
 - Added the root SonarQube project descriptor for `ha-reminder`, including
   Python source and test roots, pytest coverage import, and quality-gate wait.
 - Updated the SonarQube GitHub Actions workflow to use the supported Python
