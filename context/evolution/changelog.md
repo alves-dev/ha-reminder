@@ -2,6 +2,12 @@
 
 # 2026-08-31
 
+- Removed the translated base error from channel tests to prevent cached or
+  malformed error translations from obscuring the test result. Channel-call
+  logs now include the exception message as well as its type.
+
+# 2026-08-31
+
 - Fixed the channel-test failure translation so it no longer treats the script
   response example as an invalid Home Assistant translation placeholder.
 

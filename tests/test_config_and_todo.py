@@ -2,7 +2,7 @@
 
 from datetime import date, datetime, timedelta
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock, PropertyMock, patch
 
 import pytest
 from homeassistant.const import STATE_UNAVAILABLE
@@ -10,7 +10,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
 
 from custom_components.ha_reminder.advanced import AdvancedReminderManager
-from custom_components.ha_reminder.config_flow import _normalise, _normalise_advanced
+from custom_components.ha_reminder.config_flow import OptionsFlow, _normalise, _normalise_advanced
 from custom_components.ha_reminder.manager import ReminderManager
 from custom_components.ha_reminder.models import Reminder
 from custom_components.ha_reminder.todo import ReminderTodoList
@@ -106,6 +106,36 @@ def test_normalise_converts_intervals_and_retry_minutes() -> None:
 
     assert result["intervals"] == [900, 3600, 14400]
     assert result["retry_interval"] == 300
+
+
+@pytest.mark.asyncio
+async def test_channel_test_failure_uses_description_instead_of_translated_error() -> None:
+    """A failed manual test reports its result without a translated base error."""
+    entry = SimpleNamespace(
+        data={
+            "channels": [
+                {
+                    "id": "mobile",
+                    "name": "Mobile",
+                    "script_entity_id": "script.reminder_mobile_igor",
+                }
+            ]
+        },
+        options={},
+        runtime_data=SimpleNamespace(async_test_channel=AsyncMock(return_value=False)),
+    )
+    flow = OptionsFlow()
+
+    with (
+        patch.object(OptionsFlow, "config_entry", new_callable=PropertyMock, return_value=entry),
+        patch.object(OptionsFlow, "async_show_form", return_value={}) as show_form,
+    ):
+        await flow.async_step_test_channel({"channel_id": "mobile"})
+
+    assert show_form.call_args.kwargs["description_placeholders"] == {
+        "result": "Failed: the script did not confirm delivery."
+    }
+    assert "errors" not in show_form.call_args.kwargs
 
 
 def test_todo_serialization_preserves_date_only_due_value() -> None:

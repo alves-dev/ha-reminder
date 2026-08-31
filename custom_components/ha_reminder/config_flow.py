@@ -360,7 +360,6 @@ class OptionsFlow(config_entries.OptionsFlow):
             return self.async_abort(reason="no_channels")
 
         result = "Not run yet."
-        errors: dict[str, str] = {}
         selected_channel_id = None
         if user_input:
             selected_channel_id = user_input["channel_id"]
@@ -369,7 +368,6 @@ class OptionsFlow(config_entries.OptionsFlow):
                 result = "Success: the script confirmed delivery."
             else:
                 result = "Failed: the script did not confirm delivery."
-                errors["base"] = "test_failed"
 
         channel_field = (
             vol.Required("channel_id", default=selected_channel_id)
@@ -391,6 +389,5 @@ class OptionsFlow(config_entries.OptionsFlow):
                     )
                 }
             ),
-            errors=errors,
             description_placeholders={"result": result},
         )

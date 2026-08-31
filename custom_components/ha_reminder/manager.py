@@ -453,7 +453,9 @@ class ReminderManager:
                 timeout=CHANNEL_TIMEOUT.total_seconds(),
             )
         except (TimeoutError, Exception) as err:  # Script errors are delivery failures.
-            _LOGGER.warning("Reminder channel %s failed: %s", channel_id, type(err).__name__)
+            _LOGGER.warning(
+                "Reminder channel %s failed: %s: %s", channel_id, type(err).__name__, err
+            )
             return False
         valid = isinstance(response, dict) and isinstance(response.get("success"), bool)
         if not valid or not response["success"]:
