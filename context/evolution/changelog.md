@@ -2,6 +2,13 @@
 
 # 2026-08-31
 
+- Added the root SonarQube project descriptor for `ha-reminder`, including
+  Python source and test roots, pytest coverage import, and quality-gate wait.
+- Updated the SonarQube GitHub Actions workflow to use the supported Python
+  3.13 runtime while retaining its established public SonarQube endpoint.
+
+# 2026-08-31
+
 - Removed the translated base error from channel tests to prevent cached or
   malformed error translations from obscuring the test result. Channel-call
   logs now include the exception message as well as its type.
