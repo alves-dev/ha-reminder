@@ -3,9 +3,10 @@
         "step": {
             "user": {
                 "title": "HA Reminder",
-                "description": "Choose whether to configure a person's reminder list or a standalone advanced reminder.",
-                "data": {
-                    "entry_type": "Configuration type"
+                "description": "Choose what you want to set up.",
+                "menu_options": {
+                    "person": "Person reminder list",
+                    "advanced": "Advanced reminder device"
                 }
             },
             "person": {
@@ -57,6 +58,75 @@
         },
         "abort": {
             "no_configured_people": "Configure at least one person before creating an advanced reminder."
+        }
+    },
+    "config_subentries": {
+        "person": {
+            "entry_type": "Person reminder list",
+            "initiate_flow": {
+                "user": "Add person reminder list",
+                "reconfigure": "Reconfigure person reminder list"
+            },
+            "abort": {
+                "no_configured_people": "Configure at least one person before creating an advanced reminder."
+            },
+            "step": {
+                "user": {
+                    "title": "Person reminders",
+                    "description": "These settings control delivery for this person and for any advanced reminder sent to them.",
+                    "data": {
+                        "person_entity_id": "Person",
+                        "intervals": "Progressive intervals (for example: 15m, 30m, 1h, 4h)",
+                        "quiet_start": "Quiet hours start",
+                        "quiet_end": "Quiet hours end",
+                        "retry_interval": "Delivery retry interval (minutes)",
+                        "max_retries": "Maximum delivery retries"
+                    }
+                },
+                "reconfigure": {
+                    "title": "Person reminders",
+                    "data": {
+                        "intervals": "Progressive intervals (for example: 15m, 30m, 1h, 4h)",
+                        "quiet_start": "Quiet hours start",
+                        "quiet_end": "Quiet hours end",
+                        "retry_interval": "Delivery retry interval (minutes)",
+                        "max_retries": "Maximum delivery retries"
+                    }
+                }
+            }
+        },
+        "advanced": {
+            "entry_type": "Advanced reminder device",
+            "initiate_flow": {
+                "user": "Add advanced reminder device",
+                "reconfigure": "Reconfigure advanced reminder device"
+            },
+            "abort": {
+                "no_configured_people": "Configure at least one person before creating an advanced reminder."
+            },
+            "step": {
+                "user": {
+                    "title": "Advanced reminder",
+                    "description": "Create one reminder device. Each recipient uses their own configured delivery channels and quiet hours.",
+                    "data": {
+                        "title": "Reminder name", "recipients": "Recipients", "level": "Notification level",
+                        "schedule_type": "Schedule", "start_date": "Start date", "time_period": "Time",
+                        "exact_time": "Exact time", "weekdays": "Weekdays", "interval_days": "Every number of days",
+                        "completion_policy": "Completion policy", "recurrence_reference": "Recurrence reference",
+                        "enabled": "Enabled"
+                    }
+                },
+                "reconfigure": {
+                    "title": "Advanced reminder",
+                    "data": {
+                        "title": "Reminder name", "recipients": "Recipients", "level": "Notification level",
+                        "schedule_type": "Schedule", "start_date": "Start date", "time_period": "Time",
+                        "exact_time": "Exact time", "weekdays": "Weekdays", "interval_days": "Every number of days",
+                        "completion_policy": "Completion policy", "recurrence_reference": "Recurrence reference",
+                        "enabled": "Enabled"
+                    }
+                }
+            }
         }
     },
     "options": {

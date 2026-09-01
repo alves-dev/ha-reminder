@@ -29,7 +29,9 @@ per reminder; none is selected in the implemented simple mode.
 
 ## Outcomes
 
-Outcomes to be documented as the project evolves.
+Superseded on 2026-09-01 by the subentry-based configuration model in
+[Decision 009](009-subentry-based-integration-configuration.md). Existing
+person configurations are migrated into subentries of one HA Reminder entry.
 
 ## Related
 
@@ -45,5 +47,5 @@ Outcomes to be documented as the project evolves.
 ## Status
 
 - **Created**: 2026-08-30 (Phase: Intent)
-- **Status**: Accepted
+- **Status**: Superseded by Decision 009
 - **Note**: Documented from existing implementation.

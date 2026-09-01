@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from typing import Any
-from uuid import uuid4
 
 import voluptuous as vol
 from homeassistant import config_entries
@@ -164,47 +163,107 @@ def _normalise_advanced(values: dict[str, Any]) -> dict[str, Any]:
 
 
 class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Create either a person configuration or an advanced reminder device."""
+    """Create the HA Reminder parent entry."""
 
     VERSION = 1
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> config_entries.FlowResult:
-        if user_input:
-            if user_input[CONF_ENTRY_TYPE] == ENTRY_TYPE_PERSON:
-                return await self.async_step_person()
-            return await self.async_step_advanced()
-        return self.async_show_form(step_id="user", data_schema=vol.Schema({
-            vol.Required(CONF_ENTRY_TYPE, default=ENTRY_TYPE_PERSON): selector.SelectSelector(
-                selector.SelectSelectorConfig(options=[
-                    selector.SelectOptionDict(value=ENTRY_TYPE_PERSON, label="Person reminder list"),
-                    selector.SelectOptionDict(value=ENTRY_TYPE_ADVANCED, label="Advanced reminder device"),
-                ])
-            )
-        }))
+        """Create one parent entry that owns all reminder subentries."""
+        if self.hass.config_entries.async_entries(DOMAIN):
+            return self.async_abort(reason="already_configured")
+        return self.async_create_entry(title="HA Reminder", data={})
 
-    async def async_step_person(self, user_input: dict[str, Any] | None = None) -> config_entries.FlowResult:
+    @classmethod
+    @callback
+    def async_get_supported_subentry_types(
+        cls, config_entry: config_entries.ConfigEntry
+    ) -> dict[str, type[config_entries.ConfigSubentryFlow]]:
+        """Expose the two creation actions on the integration page."""
+        return {
+            ENTRY_TYPE_PERSON: ReminderSubentryFlow,
+            ENTRY_TYPE_ADVANCED: ReminderSubentryFlow,
+        }
+
+
+class ReminderSubentryFlow(config_entries.ConfigSubentryFlow):
+    """Create and reconfigure person and advanced reminder subentries."""
+
+    async def async_step_user(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.SubentryFlowResult:
+        """Start creation for the selected subentry type."""
+        return await self._async_step_configuration(user_input, reconfigure=False)
+
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.SubentryFlowResult:
+        """Edit the selected subentry's core reminder configuration."""
+        return await self._async_step_configuration(user_input, reconfigure=True)
+
+    async def _async_step_configuration(
+        self, user_input: dict[str, Any] | None, *, reconfigure: bool
+    ) -> config_entries.SubentryFlowResult:
+        """Show and validate the form for the current subentry type."""
+        entry = self._get_entry()
+        current = self._get_reconfigure_subentry() if reconfigure else None
+        if self._subentry_type == ENTRY_TYPE_PERSON:
+            return await self._async_step_person(entry, current, user_input)
+        return await self._async_step_advanced(entry, current, user_input)
+
+    async def _async_step_person(
+        self,
+        entry: config_entries.ConfigEntry,
+        current: config_entries.ConfigSubentry | None,
+        user_input: dict[str, Any] | None,
+    ) -> config_entries.SubentryFlowResult:
+        """Create or update a person reminder list."""
         errors: dict[str, str] = {}
+        defaults = dict(current.data) if current else {}
         if user_input:
             try:
-                data = _normalise(user_input)
+                data = _normalise(
+                    user_input
+                    if current is None
+                    else {**user_input, CONF_PERSON_ENTITY_ID: defaults[CONF_PERSON_ENTITY_ID]}
+                )
             except vol.Invalid:
                 errors["base"] = "invalid_intervals"
             else:
                 data[CONF_ENTRY_TYPE] = ENTRY_TYPE_PERSON
-                await self.async_set_unique_id(data[CONF_PERSON_ENTITY_ID])
-                self._abort_if_unique_id_configured()
                 name = data[CONF_PERSON_ENTITY_ID].split(".", 1)[1].replace("_", " ").title()
-                return self.async_create_entry(title=f"Reminders — {name}", data=data)
-        return self.async_show_form(step_id="person", data_schema=_schema(), errors=errors)
+                if current:
+                    return self.async_update_reload_and_abort(
+                        entry, current, title=f"Reminders — {name}", data=data
+                    )
+                return self.async_create_entry(
+                    title=f"Reminders — {name}",
+                    data=data,
+                    unique_id=data[CONF_PERSON_ENTITY_ID],
+                )
+        if current:
+            return self.async_show_form(
+                step_id="reconfigure",
+                data_schema=_person_options_schema(defaults),
+                errors=errors,
+            )
+        return self.async_show_form(step_id="user", data_schema=_schema(defaults), errors=errors)
 
-    def _configured_people(self) -> list[str]:
-        return [entry.data[CONF_PERSON_ENTITY_ID] for entry in self.hass.config_entries.async_entries(DOMAIN) if entry.data.get(CONF_ENTRY_TYPE, ENTRY_TYPE_PERSON) == ENTRY_TYPE_PERSON]
-
-    async def async_step_advanced(self, user_input: dict[str, Any] | None = None) -> config_entries.FlowResult:
-        people = self._configured_people()
+    async def _async_step_advanced(
+        self,
+        entry: config_entries.ConfigEntry,
+        current: config_entries.ConfigSubentry | None,
+        user_input: dict[str, Any] | None,
+    ) -> config_entries.SubentryFlowResult:
+        """Create or update an advanced reminder device."""
+        people = [
+            subentry.data[CONF_PERSON_ENTITY_ID]
+            for subentry in entry.subentries.values()
+            if subentry.subentry_type == ENTRY_TYPE_PERSON
+        ]
         if not people:
             return self.async_abort(reason="no_configured_people")
         errors: dict[str, str] = {}
+        defaults = dict(current.data) if current else {}
         if user_input:
             try:
                 data = _normalise_advanced(user_input)
@@ -212,14 +271,16 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors["base"] = str(err)
             else:
                 data[CONF_ENTRY_TYPE] = ENTRY_TYPE_ADVANCED
-                await self.async_set_unique_id(f"advanced-{uuid4()}")
+                if current:
+                    return self.async_update_reload_and_abort(
+                        entry, current, title=data["title"].strip(), data=data
+                    )
                 return self.async_create_entry(title=data["title"].strip(), data=data)
-        return self.async_show_form(step_id="advanced", data_schema=_advanced_schema({}, people), errors=errors)
-
-    @staticmethod
-    @callback
-    def async_get_options_flow(config_entry: config_entries.ConfigEntry) -> OptionsFlow:
-        return OptionsFlow()
+        return self.async_show_form(
+            step_id="reconfigure" if current else "user",
+            data_schema=_advanced_schema(defaults, people),
+            errors=errors,
+        )
 
 
 class OptionsFlow(config_entries.OptionsFlow):

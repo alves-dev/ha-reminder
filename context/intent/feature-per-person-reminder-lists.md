@@ -24,6 +24,7 @@ reminders.
 - [Project Intent](project-intent.md)
 - [Decision: Home Assistant Integration Architecture](../decisions/002-home-assistant-integration-architecture.md)
 - [Decision: Persistent Reminder Lifecycle](../decisions/003-persistent-reminder-lifecycle.md)
+- [Decision: Subentry-Based Integration Configuration](../decisions/009-subentry-based-integration-configuration.md)
 - [Pattern: Local To-Do Item Lifecycle](../knowledge/patterns/local-todo-item-lifecycle.md)
 
 ## Status

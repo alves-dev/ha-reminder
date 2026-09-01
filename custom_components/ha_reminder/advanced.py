@@ -60,6 +60,7 @@ from .const import (
     SCHEDULE_WEEKLY,
     STORAGE_VERSION,
 )
+from .runtime import ReminderSubentry
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -205,9 +206,14 @@ class AdvancedReminderManager:
         """Enable future scheduling or cancel the current occurrence permanently."""
         async with self._lock:
             self.data[CONF_ENABLED] = enabled
-            self.hass.config_entries.async_update_entry(
-                self.entry, options={**self.entry.options, CONF_ENABLED: enabled}
-            )
+            updated_data = {**self.data, CONF_ENABLED: enabled}
+            if isinstance(self.entry, ReminderSubentry):
+                self.entry.async_update_data(updated_data)
+            else:
+                self.hass.config_entries.async_update_entry(
+                    self.entry, options={**self.entry.options, CONF_ENABLED: enabled}
+                )
+            self.data = updated_data
             self.store.data["generation"] += 1
             self.store.data["active"] = None
             if enabled:
@@ -354,6 +360,10 @@ class AdvancedReminderManager:
 
     def _person_data(self, person_entity_id: str) -> dict[str, Any] | None:
         for entry in self.hass.config_entries.async_entries(DOMAIN):
+            for subentry in entry.subentries.values():
+                entry_data = dict(subentry.data)
+                if entry_data.get("person_entity_id") == person_entity_id:
+                    return entry_data
             entry_data = {**entry.data, **entry.options}
             if entry_data.get("person_entity_id") == person_entity_id:
                 return entry_data

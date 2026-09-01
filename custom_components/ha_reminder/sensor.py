@@ -13,14 +13,19 @@ from .manager import ReminderManager
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry[ReminderManager],
+    entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    manager = entry.runtime_data
-    if isinstance(manager, AdvancedReminderManager):
-        async_add_entities([AdvancedStatusSensor(manager), AdvancedNextOccurrenceSensor(manager)])
-    else:
-        async_add_entities([PendingRemindersSensor(manager), NextReminderSensor(manager)])
+    for manager in entry.runtime_data["person_managers"].values():
+        async_add_entities(
+            [PendingRemindersSensor(manager), NextReminderSensor(manager)],
+            config_subentry_id=manager.entry.entry_id,
+        )
+    for manager in entry.runtime_data["advanced_managers"].values():
+        async_add_entities(
+            [AdvancedStatusSensor(manager), AdvancedNextOccurrenceSensor(manager)],
+            config_subentry_id=manager.entry.entry_id,
+        )
 
 
 class _BaseSensor(SensorEntity):

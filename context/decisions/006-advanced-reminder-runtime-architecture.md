@@ -37,6 +37,11 @@ Advanced entries reload after edits, invalidating an active occurrence before th
 new definition calculates its next future schedule. The generic interaction
 service routes completion by advanced config-entry identifier.
 
+On 2026-09-01, the configuration container was superseded by
+[Decision 009](009-subentry-based-integration-configuration.md). Advanced
+reminders retain independent managers and stable identifiers as subentries of
+one HA Reminder config entry.
+
 ## Related
 
 - [Project Intent](../intent/project-intent.md)
@@ -48,5 +53,5 @@ service routes completion by advanced config-entry identifier.
 ## Status
 
 - **Created**: 2026-08-30 (Phase: Intent)
-- **Status**: Accepted
+- **Status**: Superseded by Decision 009
 - **Approval**: User requested implementation on 2026-08-30.

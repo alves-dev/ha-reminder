@@ -10,7 +10,12 @@ from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
 
 from custom_components.ha_reminder.advanced import AdvancedReminderManager
-from custom_components.ha_reminder.config_flow import OptionsFlow, _normalise, _normalise_advanced
+from custom_components.ha_reminder.config_flow import (
+    ConfigFlow,
+    OptionsFlow,
+    _normalise,
+    _normalise_advanced,
+)
 from custom_components.ha_reminder.manager import ReminderManager
 from custom_components.ha_reminder.models import Reminder
 from custom_components.ha_reminder.todo import ReminderTodoList
@@ -106,6 +111,13 @@ def test_normalise_converts_intervals_and_retry_minutes() -> None:
 
     assert result["intervals"] == [900, 3600, 14400]
     assert result["retry_interval"] == 300
+
+
+def test_config_flow_supports_person_and_advanced_subentries() -> None:
+    """The integration page can create both supported reminder subentry types."""
+    supported_types = ConfigFlow.async_get_supported_subentry_types(SimpleNamespace())
+
+    assert set(supported_types) == {"person", "advanced"}
 
 
 @pytest.mark.asyncio

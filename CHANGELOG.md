@@ -6,7 +6,10 @@ All user-relevant changes are documented in this file.
 
 ### Changed
 
-- Updated the integration release version.
+- Replaced the configuration-type selector with separate setup actions for
+  person reminder lists and advanced reminder devices.
+- Grouped existing reminder configurations under one HA Reminder entry while
+  retaining their saved reminder state, devices, and entity identifiers.
 
 ## [2026.8.0] - 2026-08-30
 

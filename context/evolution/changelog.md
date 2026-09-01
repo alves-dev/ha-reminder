@@ -3,6 +3,10 @@
 # 2026-09-01
 
 - Updated HA Reminder's integration release version to 2026.9.0.
+- Replaced the configuration-type selector with separate setup actions for
+  person reminder lists and advanced reminder devices.
+- Migrated person reminder lists and advanced reminder devices into subentries
+  of one HA Reminder entry, preserving their persisted identifiers.
 
 # 2026-08-31
 

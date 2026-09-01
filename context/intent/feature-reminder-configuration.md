@@ -13,6 +13,8 @@ lets users tailor follow-up without changing the task workflow itself.
 ## Acceptance Criteria
 
 - [x] A user can select a person to configure.
+- [x] The integration page presents separate actions for a person reminder list
+  and an advanced reminder device.
 - [x] A person cannot be configured more than once.
 - [x] Users can change follow-up and quiet-hour settings.
 - [x] Users receive validation feedback for invalid timing intervals.
@@ -24,6 +26,7 @@ lets users tailor follow-up without changing the task workflow itself.
 - [Decision: Home Assistant Integration Architecture](../decisions/002-home-assistant-integration-architecture.md)
 - [Pattern: Configuration Normalization and Validation](../knowledge/patterns/configuration-normalization-and-validation.md)
 - [Feature: Delivery Channel Testing](feature-delivery-channel-testing.md)
+- [Decision: Subentry-Based Integration Configuration](../decisions/009-subentry-based-integration-configuration.md)
 
 ## Status
 

@@ -30,6 +30,7 @@ reminders visible and controllable without weakening the simple list workflow.
 - [Decision: Advanced Reminder Runtime Architecture](../decisions/006-advanced-reminder-runtime-architecture.md)
 - [Decision: Scheduler and Delivery Policy](../decisions/004-scheduler-and-delivery-policy.md)
 - [Decision: Script-Based Delivery Channels](../decisions/005-script-based-delivery-channels.md)
+- [Decision: Subentry-Based Integration Configuration](../decisions/009-subentry-based-integration-configuration.md)
 - [Pattern: Serialized Reminder Scheduling](../knowledge/patterns/serialized-reminder-scheduling.md)
 - [Pattern: Reminder Generation Reconciliation](../knowledge/patterns/reminder-generation-reconciliation.md)
 

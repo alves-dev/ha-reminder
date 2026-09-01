@@ -110,4 +110,5 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: Any, async_add_entities: AddEntitiesCallback
 ) -> None:
     """Set up the per-person todo entity."""
-    async_add_entities([entry.runtime_data.todo])
+    for manager in entry.runtime_data["person_managers"].values():
+        async_add_entities([manager.todo], config_subentry_id=manager.entry.entry_id)
