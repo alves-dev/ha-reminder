@@ -1,6 +1,6 @@
 [project]
 name = "ha-reminder"
-version = "2026.8.0"
+version = "2026.9.0"
 description = "Persistent, script-delivered reminders for Home Assistant"
 readme = "README.md"
 requires-python = ">=3.13.2,<3.14"

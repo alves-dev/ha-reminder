@@ -6,7 +6,7 @@ from datetime import timedelta
 
 DOMAIN = "ha_reminder"
 NAME = "HA Reminder"
-INTEGRATION_VERSION = "2026.8.0"
+INTEGRATION_VERSION = "2026.9.0"
 PERSON_PLATFORMS = ["todo", "sensor"]
 ADVANCED_PLATFORMS = ["sensor", "switch"]
 

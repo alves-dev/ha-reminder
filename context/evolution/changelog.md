@@ -1,5 +1,9 @@
 # Changelog
 
+# 2026-09-01
+
+- Updated HA Reminder's integration release version to 2026.9.0.
+
 # 2026-08-31
 
 - Fixed channel delivery to call each script's response-capable named service
