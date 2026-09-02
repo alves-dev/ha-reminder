@@ -22,7 +22,7 @@
                 },
                 "data_description": {
                     "intervals": "Use a comma-separated sequence such as 15m, 30m, 1h, 4h. The last interval repeats.",
-                    "quiet_start": "Low and normal reminders wait until quiet hours end.",
+                    "quiet_start": "Normal reminders wait until quiet hours end.",
                     "retry_interval": "Wait time after every configured channel fails.",
                     "max_retries": "After this many failures, the progressive schedule resumes."
                 }
@@ -38,6 +38,7 @@
                     "start_date": "Start date",
                     "time_period": "Time",
                     "exact_time": "Exact time",
+                    "continue_after_exact_time": "Continue reminder alerts after the exact time",
                     "weekdays": "Weekdays",
                     "interval_days": "Every number of days",
                     "completion_policy": "Completion policy",
@@ -46,9 +47,10 @@
                 },
                 "data_description": {
                     "recipients": "Only people already configured in HA Reminder are available.",
-                    "level": "Low and normal levels respect quiet hours. High and critical levels do not.",
+                    "level": "Normal level respects quiet hours. High and critical levels do not.",
                     "time_period": "Morning, afternoon and evening use fixed times of 09:00, 13:00 and 18:00.",
                     "exact_time": "Used only when Time is set to Exact time.",
+                    "continue_after_exact_time": "Keep using follow-up intervals after the exact time until the occurrence is completed or expires at the end of the day.",
                     "weekdays": "Required when Schedule is Selected weekdays.",
                     "interval_days": "Used only when Schedule is Every number of days.",
                     "completion_policy": "Choose whether an unfinished occurrence expires overnight or continues until it is completed.",
@@ -106,24 +108,33 @@
             },
             "step": {
                 "user": {
-                    "title": "Advanced reminder",
+                    "title": "Advanced reminder: common settings",
                     "description": "Create one reminder device. Each recipient uses their own configured delivery channels and quiet hours.",
                     "data": {
                         "title": "Reminder name", "recipients": "Recipients", "level": "Notification level",
                         "schedule_type": "Schedule", "start_date": "Start date", "time_period": "Time",
-                        "exact_time": "Exact time", "weekdays": "Weekdays", "interval_days": "Every number of days",
-                        "completion_policy": "Completion policy", "recurrence_reference": "Recurrence reference",
+                        "completion_policy": "Completion policy",
                         "enabled": "Enabled"
                     }
                 },
                 "reconfigure": {
-                    "title": "Advanced reminder",
+                    "title": "Advanced reminder: common settings",
                     "data": {
                         "title": "Reminder name", "recipients": "Recipients", "level": "Notification level",
                         "schedule_type": "Schedule", "start_date": "Start date", "time_period": "Time",
-                        "exact_time": "Exact time", "weekdays": "Weekdays", "interval_days": "Every number of days",
-                        "completion_policy": "Completion policy", "recurrence_reference": "Recurrence reference",
+                        "completion_policy": "Completion policy",
                         "enabled": "Enabled"
+                    }
+                },
+                "advanced_details": {
+                    "title": "Advanced reminder: schedule details",
+                    "description": "Only fields that apply to the selected schedule and time are shown.",
+                    "data": {
+                        "exact_time": "Exact time",
+                        "continue_after_exact_time": "Continue reminder alerts after the exact time",
+                        "weekdays": "Weekdays",
+                        "interval_days": "Every number of days",
+                        "recurrence_reference": "Recurrence reference"
                     }
                 }
             }
@@ -160,6 +171,7 @@
                     "start_date": "Start date",
                     "time_period": "Time",
                     "exact_time": "Exact time",
+                    "continue_after_exact_time": "Continue reminder alerts after the exact time",
                     "weekdays": "Weekdays",
                     "interval_days": "Every number of days",
                     "completion_policy": "Completion policy",
@@ -220,11 +232,17 @@
             },
             "advanced_next_occurrence": {
                 "name": "Next occurrence"
+            },
+            "advanced_notification_level": {
+                "name": "Notification level"
             }
         },
         "switch": {
             "advanced_enabled": {
                 "name": "Enabled"
+            },
+            "advanced_completed_today": {
+                "name": "Completed today"
             }
         }
     },

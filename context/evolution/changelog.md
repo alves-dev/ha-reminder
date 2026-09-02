@@ -1,7 +1,21 @@
 # Changelog
 
+# 2026-09-02
+
+- Split advanced reminder configuration into common and schedule-specific steps,
+  so users see only fields that apply to their selections.
+- Avoided the schedule-details page when a selected configuration has no
+  additional fields, allowing the reminder to be saved directly.
+
 # 2026-09-01
 
+- Fixed the per-person to-do entity name so the person's name is not repeated.
+- Removed the low notification level, added an advanced-device notification-level
+  sensor, and normalize legacy low configurations to normal.
+- Added the advanced **Completed today** switch, which suppresses today's
+  delivery and resets automatically at local midnight.
+- Added an advanced exact-time option for continuing follow-up alerts after the
+  initial scheduled notification.
 - Updated HA Reminder's integration release version to 2026.9.0.
 - Replaced the configuration-type selector with separate setup actions for
   person reminder lists and advanced reminder devices.

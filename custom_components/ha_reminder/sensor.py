@@ -23,7 +23,11 @@ async def async_setup_entry(
         )
     for manager in entry.runtime_data["advanced_managers"].values():
         async_add_entities(
-            [AdvancedStatusSensor(manager), AdvancedNextOccurrenceSensor(manager)],
+            [
+                AdvancedStatusSensor(manager),
+                AdvancedNextOccurrenceSensor(manager),
+                AdvancedNotificationLevelSensor(manager),
+            ],
             config_subentry_id=manager.entry.entry_id,
         )
 
@@ -110,3 +114,18 @@ class AdvancedNextOccurrenceSensor(_AdvancedBaseSensor):
     def native_value(self) -> str | None:
         value = self.manager.next_occurrence_at
         return value.isoformat() if value else None
+
+
+class AdvancedNotificationLevelSensor(_AdvancedBaseSensor):
+    """Expose the notification level configured on the reminder device."""
+
+    _attr_translation_key = "advanced_notification_level"
+    _attr_icon = "mdi:bell-alert-outline"
+
+    def __init__(self, manager: AdvancedReminderManager) -> None:
+        super().__init__(manager)
+        self._attr_unique_id = f"{manager.entry.entry_id}_advanced_notification_level"
+
+    @property
+    def native_value(self) -> str:
+        return self.manager.notification_level

@@ -6,6 +6,14 @@ All user-relevant changes are documented in this file.
 
 ### Changed
 
+- Corrected the per-person to-do name and removed the low notification level.
+- Added notification-level and daily-completion entities to advanced reminder
+  devices. Daily completion suppresses reminders through local midnight.
+- Added an exact-time follow-up option to advanced reminder configuration.
+- Advanced configuration now hides inapplicable schedule fields in a dedicated
+  schedule-details step.
+- Configurations without schedule-specific fields now save directly instead of
+  presenting an empty details step.
 - Replaced the configuration-type selector with separate setup actions for
   person reminder lists and advanced reminder devices.
 - Grouped existing reminder configurations under one HA Reminder entry while

@@ -45,7 +45,7 @@ class ReminderTodoList(TodoListEntity):
         self._changed = changed
         slug = person_entity_id.split(".", 1)[-1]
         self._attr_unique_id = f"{entry_id}_{slug}_todo"
-        self._attr_name = f"Reminders {person_name}"
+        self._attr_name = "To-do list"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, entry_id)},
             name=f"Reminders — {person_name}",

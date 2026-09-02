@@ -15,7 +15,9 @@ HA Reminder turns each item in a person's local reminder list into a persistent 
 - Independent progressive schedules, due-date scheduling (date-only is 09:00), quiet hours, and retry handling.
 - Script-only notification channels with per-person priority, fallback, equal-priority round robin, a five-second response timeout, and global five-second channel throttling.
 - Local persistent state that is reconciled after Home Assistant restarts.
-- Advanced reminder devices with an enable switch, status, next-occurrence visibility, recurrence, independent delivery for each recipient, and shared completion.
+- Advanced reminder devices with enable and daily-completion switches, status,
+  notification-level and next-occurrence sensors, recurrence, independent
+  delivery for each recipient, and shared completion.
 
 ## HACS availability
 
@@ -34,7 +36,10 @@ For a standard phone or other `notify.*` entity, import the included [notificati
 
 Choose **Add advanced reminder device** on that same page to create a device for a one-time or
 recurring household reminder. Select recipients from the people already configured in HA Reminder,
-define its priority and schedule, then use its enable switch and status sensors. Call
+define its notification level and schedule, then use its enable and **Completed today**
+switches and device sensors. For an exact time, enable **Continue alerts after exact
+time** to repeat notifications through the day or until completion. The second
+configuration step shows only fields relevant to the selected schedule. Call
 `ha_reminder.interact` with `interaction: complete` to complete the active occurrence from an
 automation, script, actionable notification, or another Home Assistant surface. Snooze and
 acknowledgement actions are reserved for a future release.
