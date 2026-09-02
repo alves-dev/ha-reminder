@@ -2,6 +2,9 @@
 
 # 2026-09-02
 
+- Fixed HA Reminder setup when integration runtime data already exists: shared
+  delivery-channel locks and cooldown timestamps are now initialized per key,
+  preserving the registered advanced-reminder managers.
 - Documented the channel-delivery flow in the architecture guide, including
   quiet-hours behavior for each notification level and priority fallback.
 - Split advanced reminder configuration into common and schedule-specific steps,
