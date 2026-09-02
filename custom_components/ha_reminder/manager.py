@@ -65,11 +65,9 @@ class ReminderManager:
         self._stopped = False
         # Dispatch state lives at integration scope: a script shared by people
         # still receives at most one invocation every five seconds.
-        dispatcher = hass.data.setdefault(
-            DOMAIN, {"channel_locks": defaultdict(asyncio.Lock), "channel_last_call": {}}
-        )
-        self._channel_locks = dispatcher["channel_locks"]
-        self._channel_last_call = dispatcher["channel_last_call"]
+        dispatcher = hass.data.setdefault(DOMAIN, {})
+        self._channel_locks = dispatcher.setdefault("channel_locks", defaultdict(asyncio.Lock))
+        self._channel_last_call = dispatcher.setdefault("channel_last_call", {})
         self._round_robin: defaultdict[int, int] = defaultdict(int)
 
     @property

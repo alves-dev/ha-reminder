@@ -17,6 +17,7 @@ from custom_components.ha_reminder.config_flow import (
     _normalise,
     _normalise_advanced,
 )
+from custom_components.ha_reminder.const import DOMAIN
 from custom_components.ha_reminder.manager import ReminderManager
 from custom_components.ha_reminder.models import Reminder
 from custom_components.ha_reminder.todo import ReminderTodoList
@@ -96,6 +97,19 @@ def _advanced_manager(hass: HomeAssistant) -> AdvancedReminderManager:
     manager = AdvancedReminderManager(hass, entry)
     manager._persist_and_schedule = Mock()
     return manager
+
+
+def test_managers_preserve_existing_domain_runtime_data(hass: HomeAssistant) -> None:
+    """Initialize shared dispatch state alongside data registered during setup."""
+    advanced_managers = {"advanced-oil": Mock()}
+    hass.data[DOMAIN] = {"advanced_managers": advanced_managers}
+
+    person_manager = _manager(hass)
+    advanced_manager = _advanced_manager(hass)
+
+    assert hass.data[DOMAIN]["advanced_managers"] is advanced_managers
+    assert person_manager._channel_locks is advanced_manager._channel_locks
+    assert person_manager._channel_last_call is advanced_manager._channel_last_call
 
 
 def test_normalise_converts_intervals_and_retry_minutes() -> None:
