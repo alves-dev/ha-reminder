@@ -6,7 +6,7 @@ from datetime import timedelta
 
 DOMAIN = "ha_reminder"
 NAME = "HA Reminder"
-INTEGRATION_VERSION = "2026.8.0"
+INTEGRATION_VERSION = "2026.9.0"
 PERSON_PLATFORMS = ["todo", "sensor"]
 ADVANCED_PLATFORMS = ["sensor", "switch"]
 
@@ -33,8 +33,8 @@ CONF_INTERVAL_DAYS = "interval_days"
 CONF_COMPLETION_POLICY = "completion_policy"
 CONF_RECURRENCE_REFERENCE = "recurrence_reference"
 CONF_ENABLED = "enabled"
+CONF_CONTINUE_AFTER_EXACT_TIME = "continue_after_exact_time"
 
-LEVEL_LOW = "low"
 LEVEL_NORMAL = "normal"
 LEVEL_HIGH = "high"
 LEVEL_CRITICAL = "critical"

@@ -27,6 +27,7 @@ from .const import (
     CONF_ASSIGNMENTS,
     CONF_CHANNELS,
     CONF_COMPLETION_POLICY,
+    CONF_CONTINUE_AFTER_EXACT_TIME,
     CONF_ENABLED,
     CONF_EXACT_TIME,
     CONF_INTERVAL_DAYS,
@@ -60,6 +61,7 @@ from .const import (
     SCHEDULE_WEEKLY,
     STORAGE_VERSION,
 )
+from .runtime import ReminderSubentry
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -80,6 +82,7 @@ class AdvancedReminderStore:
         self.data.setdefault("next_occurrence_at", None)
         self.data.setdefault("last_status", "scheduled")
         self.data.setdefault("configuration", None)
+        self.data.setdefault("completed_on", None)
 
     def async_save(self) -> None:
         self._store.async_delay_save(lambda: self.data, 1)
@@ -131,6 +134,17 @@ class AdvancedReminderManager:
         return self.store.data.get("last_status", "scheduled")
 
     @property
+    def notification_level(self) -> str:
+        """Return the supported level used for notification delivery."""
+        level = self.data.get(CONF_LEVEL, LEVEL_NORMAL)
+        return LEVEL_NORMAL if level == "low" else level
+
+    @property
+    def is_completed_today(self) -> bool:
+        """Return whether this reminder was marked complete on the local day."""
+        return self.store.data.get("completed_on") == dt_util.now().date().isoformat()
+
+    @property
     def next_occurrence_at(self) -> datetime | None:
         value = self.store.data.get("next_occurrence_at")
         return datetime.fromisoformat(value) if value else None
@@ -156,7 +170,7 @@ class AdvancedReminderManager:
 
     def _configuration_signature(self) -> dict[str, Any]:
         """Return the durable definition whose change invalidates active work."""
-        return {
+        signature = {
             key: self.data.get(key)
             for key in (
                 "title",
@@ -173,6 +187,11 @@ class AdvancedReminderManager:
                 CONF_ENABLED,
             )
         }
+        if CONF_CONTINUE_AFTER_EXACT_TIME in self.data:
+            signature[CONF_CONTINUE_AFTER_EXACT_TIME] = self.data[
+                CONF_CONTINUE_AFTER_EXACT_TIME
+            ]
+        return signature
 
     async def async_stop(self) -> None:
         self._stopped = True
@@ -190,6 +209,7 @@ class AdvancedReminderManager:
             self.store.data["generation"] += 1
             self.store.data["active"] = None
             self.store.data["last_status"] = "completed"
+            self.store.data["completed_on"] = completed_at.date().isoformat()
             scheduled_at = datetime.fromisoformat(active["scheduled_at"])
             reference = (
                 completed_at
@@ -201,13 +221,45 @@ class AdvancedReminderManager:
             self._persist_and_schedule()
             return True
 
+    async def async_set_completed_today(self, completed: bool) -> None:
+        """Record or clear daily completion and reconcile today's occurrence."""
+        async with self._lock:
+            if not completed:
+                self.store.data["completed_on"] = None
+                self._persist_and_schedule()
+                return
+
+            completed_at = dt_util.now()
+            self.store.data["completed_on"] = completed_at.date().isoformat()
+            active = self.store.data["active"]
+            if active:
+                self.store.data["generation"] += 1
+                self.store.data["active"] = None
+                self.store.data["last_status"] = "completed"
+                scheduled_at = datetime.fromisoformat(active["scheduled_at"])
+                reference = (
+                    completed_at
+                    if self.data.get(CONF_RECURRENCE_REFERENCE) == REFERENCE_COMPLETION
+                    else max(scheduled_at, completed_at)
+                )
+                following = self._next_schedule(reference)
+                self.store.data["next_occurrence_at"] = (
+                    following.isoformat() if following else None
+                )
+            self._persist_and_schedule()
+
     async def async_set_enabled(self, enabled: bool) -> None:
         """Enable future scheduling or cancel the current occurrence permanently."""
         async with self._lock:
             self.data[CONF_ENABLED] = enabled
-            self.hass.config_entries.async_update_entry(
-                self.entry, options={**self.entry.options, CONF_ENABLED: enabled}
-            )
+            updated_data = {**self.data, CONF_ENABLED: enabled}
+            if isinstance(self.entry, ReminderSubentry):
+                self.entry.async_update_data(updated_data)
+            else:
+                self.hass.config_entries.async_update_entry(
+                    self.entry, options={**self.entry.options, CONF_ENABLED: enabled}
+                )
+            self.data = updated_data
             self.store.data["generation"] += 1
             self.store.data["active"] = None
             if enabled:
@@ -277,13 +329,20 @@ class AdvancedReminderManager:
         candidates: list[datetime] = []
         if self.is_enabled and not self.store.data["active"] and self.next_occurrence_at:
             candidates.append(self.next_occurrence_at)
+        if self.is_completed_today:
+            midnight = dt_util.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            candidates.append(dt_util.as_utc(midnight + timedelta(days=1)))
         active = self.store.data["active"]
         if active:
             if self.data.get(CONF_COMPLETION_POLICY) == COMPLETION_EXPIRE:
                 scheduled = dt_util.as_local(datetime.fromisoformat(active["scheduled_at"]))
                 end = scheduled.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
                 candidates.append(dt_util.as_utc(end))
-            candidates.extend(datetime.fromisoformat(item["next_at"]) for item in active["recipients"].values())
+            candidates.extend(
+                datetime.fromisoformat(item["next_at"])
+                for item in active["recipients"].values()
+                if item.get("follow_up", True)
+            )
         return min(candidates, default=None)
 
     def _persist_and_schedule(self) -> None:
@@ -304,25 +363,34 @@ class AdvancedReminderManager:
     async def _async_timer(self, _now: datetime) -> None:
         async with self._lock:
             self._timer_cancel = None
-            await self._async_advance_occurrence_locked()
+            state_changed = await self._async_advance_occurrence_locked()
             active = self.store.data["active"]
             due = []
             if active:
                 due = [
                     person
                     for person, state in active["recipients"].items()
-                    if datetime.fromisoformat(state["next_at"]) <= dt_util.utcnow()
+                    if state.get("follow_up", True)
+                    and datetime.fromisoformat(state["next_at"]) <= dt_util.utcnow()
                 ]
                 generation = active["generation"]
             else:
                 generation = 0
         await asyncio.gather(*(self._async_deliver(person, generation) for person in due))
         async with self._lock:
-            self._schedule_next()
+            if state_changed:
+                self._persist_and_schedule()
+            else:
+                self._schedule_next()
 
-    async def _async_advance_occurrence_locked(self) -> None:
+    async def _async_advance_occurrence_locked(self) -> bool:
         if self._stopped or not self.is_enabled:
-            return
+            return False
+        state_changed = False
+        completed_on = self.store.data.get("completed_on")
+        if completed_on and completed_on != dt_util.now().date().isoformat():
+            self.store.data["completed_on"] = None
+            state_changed = True
         active = self.store.data["active"]
         if active and self.data.get(CONF_COMPLETION_POLICY) == COMPLETION_EXPIRE:
             scheduled = dt_util.as_local(datetime.fromisoformat(active["scheduled_at"]))
@@ -333,11 +401,18 @@ class AdvancedReminderManager:
                 next_at = self._next_schedule(datetime.fromisoformat(active["scheduled_at"]))
                 self.store.data["next_occurrence_at"] = next_at.isoformat() if next_at else None
                 active = None
+                state_changed = True
         if active or not self.next_occurrence_at or self.next_occurrence_at > dt_util.utcnow():
-            return
+            return state_changed
+        scheduled_at = self.next_occurrence_at
+        if self.is_completed_today and dt_util.as_local(scheduled_at).date() == dt_util.now().date():
+            self.store.data["generation"] += 1
+            self.store.data["last_status"] = "completed"
+            next_at = self._next_schedule(scheduled_at)
+            self.store.data["next_occurrence_at"] = next_at.isoformat() if next_at else None
+            return True
         self.store.data["generation"] += 1
         generation = self.store.data["generation"]
-        scheduled_at = self.next_occurrence_at
         self.store.data["active"] = {
             "occurrence_id": str(uuid4()),
             "generation": generation,
@@ -350,10 +425,14 @@ class AdvancedReminderManager:
         self.store.data["last_status"] = "active"
         next_at = self._next_schedule(scheduled_at)
         self.store.data["next_occurrence_at"] = next_at.isoformat() if next_at else None
-        self.store.async_save()
+        return True
 
     def _person_data(self, person_entity_id: str) -> dict[str, Any] | None:
         for entry in self.hass.config_entries.async_entries(DOMAIN):
+            for subentry in entry.subentries.values():
+                entry_data = dict(subentry.data)
+                if entry_data.get("person_entity_id") == person_entity_id:
+                    return entry_data
             entry_data = {**entry.data, **entry.options}
             if entry_data.get("person_entity_id") == person_entity_id:
                 return entry_data
@@ -379,7 +458,7 @@ class AdvancedReminderManager:
             data = self._person_data(person)
             if not data:
                 return
-            if self.data.get(CONF_LEVEL) in ("low", LEVEL_NORMAL) and self._in_quiet_hours(data):
+            if self.notification_level == LEVEL_NORMAL and self._in_quiet_hours(data):
                 recipient["next_at"] = self._quiet_end(data).isoformat()
                 self._persist_and_schedule()
                 return
@@ -408,8 +487,16 @@ class AdvancedReminderManager:
                 recipient["cycle"] += 1
                 recipient["retries"] = 0
                 intervals = data.get(CONF_INTERVALS, DEFAULT_INTERVALS)
-                delay = intervals[min(recipient["cycle"], len(intervals) - 1)]
-                recipient["next_at"] = (dt_util.utcnow() + timedelta(seconds=delay)).isoformat()
+                if (
+                    self.data.get(CONF_TIME_PERIOD) == PERIOD_EXACT
+                    and not self.data.get(CONF_CONTINUE_AFTER_EXACT_TIME, True)
+                ):
+                    recipient["follow_up"] = False
+                else:
+                    delay = intervals[min(recipient["cycle"], len(intervals) - 1)]
+                    recipient["next_at"] = (
+                        dt_util.utcnow() + timedelta(seconds=delay)
+                    ).isoformat()
             else:
                 recipient["retries"] += 1
                 if recipient["retries"] <= data.get(CONF_MAX_RETRIES, DEFAULT_MAX_RETRIES):
@@ -451,7 +538,7 @@ class AdvancedReminderManager:
                 active = self.store.data["active"]
                 if self._stopped or not active or active["generation"] != generation:
                     return False
-                if self.data.get(CONF_LEVEL) in ("low", LEVEL_NORMAL) and self._in_quiet_hours(data):
+                if self.notification_level == LEVEL_NORMAL and self._in_quiet_hours(data):
                     return None
                 recipient = active["recipients"][person]
                 payload = {
@@ -461,7 +548,7 @@ class AdvancedReminderManager:
                     "todo_item_uid": None,
                     "title": self.data["title"],
                     "description": None,
-                    "level": self.data.get(CONF_LEVEL, "low"),
+                    "level": self.notification_level,
                     "attempt": recipient["retries"] + 1,
                     "channel_priority": channel["priority"],
                     "created_at": active["scheduled_at"],
@@ -471,7 +558,9 @@ class AdvancedReminderManager:
                 self._channel_last_call[channel_id] = dt_util.utcnow()
                 response = await asyncio.wait_for(
                     self.hass.services.async_call(
-                        "script", "turn_on", {"entity_id": channel["script_entity_id"], "variables": payload},
+                        "script",
+                        channel["script_entity_id"].split(".", maxsplit=1)[1],
+                        payload,
                         blocking=True, return_response=True,
                     ), timeout=CHANNEL_TIMEOUT.total_seconds(),
                 )

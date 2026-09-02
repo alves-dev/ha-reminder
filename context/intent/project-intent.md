@@ -15,8 +15,8 @@ their home, while keeping task completion in a familiar per-person list.
 ## Current State
 
 The integration supports one reminder list per configured person, recurring
-low-priority reminders, configurable delivery handling, retained state across
-restarts, and diagnostic visibility. Advanced reminder devices are approved for
+reminders with configurable delivery handling, retained state across restarts,
+and diagnostic visibility. Advanced reminder devices are approved for
 implementation; acknowledgement and snooze actions remain intentionally out of
 scope.
 
@@ -25,9 +25,11 @@ scope.
 - Per-person reminder lists
 - Persistent follow-up scheduling
 - Configurable delivery channels and fallback
+- Ready-to-configure notification-channel blueprint
 - Restart-safe reminder state
 - Reminder status visibility
 - Person and delivery settings
+- Delivery channel testing
 - Advanced reminder devices
 
 ## Status

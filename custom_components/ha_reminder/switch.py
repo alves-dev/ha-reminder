@@ -14,13 +14,15 @@ from .advanced import AdvancedReminderManager
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry[AdvancedReminderManager],
+    entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up the advanced-reminder enable switch."""
-    manager = entry.runtime_data
-    if isinstance(manager, AdvancedReminderManager):
-        async_add_entities([AdvancedReminderSwitch(manager)])
+    """Set up switches for advanced-reminder devices."""
+    for manager in entry.runtime_data["advanced_managers"].values():
+        async_add_entities(
+            [AdvancedReminderSwitch(manager), AdvancedCompletedTodaySwitch(manager)],
+            config_subentry_id=manager.entry.entry_id,
+        )
 
 
 class AdvancedReminderSwitch(SwitchEntity):
@@ -44,3 +46,27 @@ class AdvancedReminderSwitch(SwitchEntity):
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         await self.manager.async_set_enabled(False)
+
+
+class AdvancedCompletedTodaySwitch(SwitchEntity):
+    """Mark an advanced reminder complete for the current local day."""
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "advanced_completed_today"
+    _attr_icon = "mdi:check-circle-outline"
+
+    def __init__(self, manager: AdvancedReminderManager) -> None:
+        self.manager = manager
+        self._attr_unique_id = f"{manager.entry.entry_id}_advanced_completed_today"
+        self._attr_device_info = manager.device_info
+        self.async_on_remove(manager.async_add_listener(self.async_write_ha_state))
+
+    @property
+    def is_on(self) -> bool:
+        return self.manager.is_completed_today
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        await self.manager.async_set_completed_today(True)
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        await self.manager.async_set_completed_today(False)

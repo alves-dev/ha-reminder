@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from typing import Any
-from uuid import uuid4
 
 import voluptuous as vol
 from homeassistant import config_entries
@@ -16,6 +15,7 @@ from .const import (
     CONF_ASSIGNMENTS,
     CONF_CHANNELS,
     CONF_COMPLETION_POLICY,
+    CONF_CONTINUE_AFTER_EXACT_TIME,
     CONF_ENABLED,
     CONF_ENTRY_TYPE,
     CONF_EXACT_TIME,
@@ -41,7 +41,6 @@ from .const import (
     ENTRY_TYPE_PERSON,
     LEVEL_CRITICAL,
     LEVEL_HIGH,
-    LEVEL_LOW,
     LEVEL_NORMAL,
     MORNING_TIME,
     PERIOD_AFTERNOON,
@@ -98,7 +97,10 @@ def _normalise(values: dict[str, Any]) -> dict[str, Any]:
 
 
 def _advanced_schema(defaults: dict[str, Any], people: list[str]) -> vol.Schema:
-    """Build the advanced-reminder form."""
+    """Build the common fields for an advanced-reminder form."""
+    level = defaults.get(CONF_LEVEL, LEVEL_NORMAL)
+    if level == "low":
+        level = LEVEL_NORMAL
     people_options = [
         selector.SelectOptionDict(value=person, label=person.split(".", 1)[-1].replace("_", " ").title())
         for person in people
@@ -106,8 +108,7 @@ def _advanced_schema(defaults: dict[str, Any], people: list[str]) -> vol.Schema:
     return vol.Schema({
         vol.Required("title", default=defaults.get("title", "")): str,
         vol.Required(CONF_RECIPIENTS, default=defaults.get(CONF_RECIPIENTS, people)): selector.SelectSelector(selector.SelectSelectorConfig(options=people_options, multiple=True)),
-        vol.Required(CONF_LEVEL, default=defaults.get(CONF_LEVEL, LEVEL_LOW)): selector.SelectSelector(selector.SelectSelectorConfig(options=[
-            selector.SelectOptionDict(value=LEVEL_LOW, label="Low"),
+        vol.Required(CONF_LEVEL, default=level): selector.SelectSelector(selector.SelectSelectorConfig(options=[
             selector.SelectOptionDict(value=LEVEL_NORMAL, label="Normal"),
             selector.SelectOptionDict(value=LEVEL_HIGH, label="High"),
             selector.SelectOptionDict(value=LEVEL_CRITICAL, label="Critical"),
@@ -126,32 +127,83 @@ def _advanced_schema(defaults: dict[str, Any], people: list[str]) -> vol.Schema:
             selector.SelectOptionDict(value=PERIOD_AFTERNOON, label="Afternoon (13:00)"),
             selector.SelectOptionDict(value=PERIOD_EVENING, label="Evening (18:00)"),
         ])),
-        vol.Required(CONF_EXACT_TIME, default=defaults.get(CONF_EXACT_TIME, MORNING_TIME)): selector.TimeSelector(),
-        vol.Required(CONF_WEEKDAYS, default=defaults.get(CONF_WEEKDAYS, [])): selector.SelectSelector(selector.SelectSelectorConfig(options=[
-            selector.SelectOptionDict(value="0", label="Monday"),
-            selector.SelectOptionDict(value="1", label="Tuesday"),
-            selector.SelectOptionDict(value="2", label="Wednesday"),
-            selector.SelectOptionDict(value="3", label="Thursday"),
-            selector.SelectOptionDict(value="4", label="Friday"),
-            selector.SelectOptionDict(value="5", label="Saturday"),
-            selector.SelectOptionDict(value="6", label="Sunday"),
-        ], multiple=True)),
-        vol.Required(CONF_INTERVAL_DAYS, default=defaults.get(CONF_INTERVAL_DAYS, 1)): selector.NumberSelector(selector.NumberSelectorConfig(min=1, max=3650, mode=selector.NumberSelectorMode.BOX)),
         vol.Required(CONF_COMPLETION_POLICY, default=defaults.get(CONF_COMPLETION_POLICY, COMPLETION_EXPIRE)): selector.SelectSelector(selector.SelectSelectorConfig(options=[
             selector.SelectOptionDict(value=COMPLETION_EXPIRE, label="Expire at the end of the day"),
             selector.SelectOptionDict(value=COMPLETION_UNTIL, label="Keep reminding until completed"),
-        ])),
-        vol.Required(CONF_RECURRENCE_REFERENCE, default=defaults.get(CONF_RECURRENCE_REFERENCE, REFERENCE_SCHEDULE)): selector.SelectSelector(selector.SelectSelectorConfig(options=[
-            selector.SelectOptionDict(value=REFERENCE_SCHEDULE, label="Keep the original schedule"),
-            selector.SelectOptionDict(value=REFERENCE_COMPLETION, label="Start the next interval after completion"),
         ])),
         vol.Required(CONF_ENABLED, default=defaults.get(CONF_ENABLED, True)): selector.BooleanSelector(),
     })
 
 
+def _advanced_details_schema(values: dict[str, Any], *, include_all: bool = False) -> vol.Schema:
+    """Build only the advanced fields that apply to the selected schedule."""
+    schema: dict[Any, Any] = {}
+    if include_all or values.get(CONF_TIME_PERIOD) == PERIOD_EXACT:
+        schema[vol.Required(
+            CONF_EXACT_TIME, default=values.get(CONF_EXACT_TIME, MORNING_TIME)
+        )] = selector.TimeSelector()
+        schema[vol.Required(
+            CONF_CONTINUE_AFTER_EXACT_TIME,
+            default=values.get(CONF_CONTINUE_AFTER_EXACT_TIME, False),
+        )] = selector.BooleanSelector()
+    if include_all or values.get(CONF_SCHEDULE_TYPE) == SCHEDULE_WEEKDAYS:
+        schema[vol.Required(
+            CONF_WEEKDAYS, default=values.get(CONF_WEEKDAYS, [])
+        )] = selector.SelectSelector(
+            selector.SelectSelectorConfig(
+                options=[
+                    selector.SelectOptionDict(value="0", label="Monday"),
+                    selector.SelectOptionDict(value="1", label="Tuesday"),
+                    selector.SelectOptionDict(value="2", label="Wednesday"),
+                    selector.SelectOptionDict(value="3", label="Thursday"),
+                    selector.SelectOptionDict(value="4", label="Friday"),
+                    selector.SelectOptionDict(value="5", label="Saturday"),
+                    selector.SelectOptionDict(value="6", label="Sunday"),
+                ],
+                multiple=True,
+            )
+        )
+    if include_all or values.get(CONF_SCHEDULE_TYPE) == SCHEDULE_EVERY_DAYS:
+        schema[vol.Required(
+            CONF_INTERVAL_DAYS, default=values.get(CONF_INTERVAL_DAYS, 1)
+        )] = selector.NumberSelector(
+            selector.NumberSelectorConfig(min=1, max=3650, mode=selector.NumberSelectorMode.BOX)
+        )
+    if include_all or values.get(CONF_COMPLETION_POLICY) == COMPLETION_UNTIL:
+        schema[vol.Required(
+            CONF_RECURRENCE_REFERENCE,
+            default=values.get(CONF_RECURRENCE_REFERENCE, REFERENCE_SCHEDULE),
+        )] = selector.SelectSelector(
+            selector.SelectSelectorConfig(
+                options=[
+                    selector.SelectOptionDict(
+                        value=REFERENCE_SCHEDULE, label="Keep the original schedule"
+                    ),
+                    selector.SelectOptionDict(
+                        value=REFERENCE_COMPLETION,
+                        label="Start the next interval after completion",
+                    ),
+                ]
+            )
+        )
+    return vol.Schema(schema)
+
+
+def _advanced_full_schema(defaults: dict[str, Any], people: list[str]) -> vol.Schema:
+    """Build the legacy all-fields form used by the independent-entry options flow."""
+    schema = dict(_advanced_schema(defaults, people).schema)
+    schema.update(_advanced_details_schema(defaults, include_all=True).schema)
+    return vol.Schema(schema)
+
+
 def _normalise_advanced(values: dict[str, Any]) -> dict[str, Any]:
     """Validate advanced-reminder cross-field invariants."""
     result = dict(values)
+    result.setdefault(CONF_EXACT_TIME, MORNING_TIME)
+    result.setdefault(CONF_CONTINUE_AFTER_EXACT_TIME, False)
+    result.setdefault(CONF_WEEKDAYS, [])
+    result.setdefault(CONF_INTERVAL_DAYS, 1)
+    result.setdefault(CONF_RECURRENCE_REFERENCE, REFERENCE_SCHEDULE)
     if not result["title"].strip() or not result[CONF_RECIPIENTS]:
         raise vol.Invalid("invalid_advanced_reminder")
     if result[CONF_COMPLETION_POLICY] == COMPLETION_EXPIRE and result[CONF_RECURRENCE_REFERENCE] == REFERENCE_COMPLETION:
@@ -160,66 +212,187 @@ def _normalise_advanced(values: dict[str, Any]) -> dict[str, Any]:
         raise vol.Invalid("missing_weekdays")
     result[CONF_WEEKDAYS] = [str(day) for day in result[CONF_WEEKDAYS]]
     result[CONF_INTERVAL_DAYS] = int(result[CONF_INTERVAL_DAYS])
+    result[CONF_CONTINUE_AFTER_EXACT_TIME] = bool(
+        result.get(CONF_CONTINUE_AFTER_EXACT_TIME, False)
+    )
+    if result[CONF_LEVEL] == "low":
+        result[CONF_LEVEL] = LEVEL_NORMAL
     return result
 
 
 class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Create either a person configuration or an advanced reminder device."""
+    """Create the HA Reminder parent entry."""
 
     VERSION = 1
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> config_entries.FlowResult:
-        if user_input:
-            if user_input[CONF_ENTRY_TYPE] == ENTRY_TYPE_PERSON:
-                return await self.async_step_person()
-            return await self.async_step_advanced()
-        return self.async_show_form(step_id="user", data_schema=vol.Schema({
-            vol.Required(CONF_ENTRY_TYPE, default=ENTRY_TYPE_PERSON): selector.SelectSelector(
-                selector.SelectSelectorConfig(options=[
-                    selector.SelectOptionDict(value=ENTRY_TYPE_PERSON, label="Person reminder list"),
-                    selector.SelectOptionDict(value=ENTRY_TYPE_ADVANCED, label="Advanced reminder device"),
-                ])
-            )
-        }))
+        """Create one parent entry that owns all reminder subentries."""
+        if self.hass.config_entries.async_entries(DOMAIN):
+            return self.async_abort(reason="already_configured")
+        return self.async_create_entry(title="HA Reminder", data={})
 
-    async def async_step_person(self, user_input: dict[str, Any] | None = None) -> config_entries.FlowResult:
+    @classmethod
+    @callback
+    def async_get_supported_subentry_types(
+        cls, config_entry: config_entries.ConfigEntry
+    ) -> dict[str, type[config_entries.ConfigSubentryFlow]]:
+        """Expose the two creation actions on the integration page."""
+        return {
+            ENTRY_TYPE_PERSON: ReminderSubentryFlow,
+            ENTRY_TYPE_ADVANCED: ReminderSubentryFlow,
+        }
+
+
+class ReminderSubentryFlow(config_entries.ConfigSubentryFlow):
+    """Create and reconfigure person and advanced reminder subentries."""
+
+    async def async_step_user(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.SubentryFlowResult:
+        """Start creation for the selected subentry type."""
+        return await self._async_step_configuration(user_input, reconfigure=False)
+
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.SubentryFlowResult:
+        """Edit the selected subentry's core reminder configuration."""
+        return await self._async_step_configuration(user_input, reconfigure=True)
+
+    async def _async_step_configuration(
+        self, user_input: dict[str, Any] | None, *, reconfigure: bool
+    ) -> config_entries.SubentryFlowResult:
+        """Show and validate the form for the current subentry type."""
+        entry = self._get_entry()
+        current = self._get_reconfigure_subentry() if reconfigure else None
+        if self._subentry_type == ENTRY_TYPE_PERSON:
+            return await self._async_step_person(entry, current, user_input)
+        return await self._async_step_advanced(
+            entry, current, user_input, reconfigure=reconfigure
+        )
+
+    async def _async_step_person(
+        self,
+        entry: config_entries.ConfigEntry,
+        current: config_entries.ConfigSubentry | None,
+        user_input: dict[str, Any] | None,
+    ) -> config_entries.SubentryFlowResult:
+        """Create or update a person reminder list."""
         errors: dict[str, str] = {}
+        defaults = dict(current.data) if current else {}
         if user_input:
             try:
-                data = _normalise(user_input)
+                data = _normalise(
+                    user_input
+                    if current is None
+                    else {**user_input, CONF_PERSON_ENTITY_ID: defaults[CONF_PERSON_ENTITY_ID]}
+                )
             except vol.Invalid:
                 errors["base"] = "invalid_intervals"
             else:
                 data[CONF_ENTRY_TYPE] = ENTRY_TYPE_PERSON
-                await self.async_set_unique_id(data[CONF_PERSON_ENTITY_ID])
-                self._abort_if_unique_id_configured()
                 name = data[CONF_PERSON_ENTITY_ID].split(".", 1)[1].replace("_", " ").title()
-                return self.async_create_entry(title=f"Reminders — {name}", data=data)
-        return self.async_show_form(step_id="person", data_schema=_schema(), errors=errors)
+                if current:
+                    return self.async_update_reload_and_abort(
+                        entry, current, title=f"Reminders — {name}", data=data
+                    )
+                return self.async_create_entry(
+                    title=f"Reminders — {name}",
+                    data=data,
+                    unique_id=data[CONF_PERSON_ENTITY_ID],
+                )
+        if current:
+            return self.async_show_form(
+                step_id="reconfigure",
+                data_schema=_person_options_schema(defaults),
+                errors=errors,
+            )
+        return self.async_show_form(step_id="user", data_schema=_schema(defaults), errors=errors)
 
-    def _configured_people(self) -> list[str]:
-        return [entry.data[CONF_PERSON_ENTITY_ID] for entry in self.hass.config_entries.async_entries(DOMAIN) if entry.data.get(CONF_ENTRY_TYPE, ENTRY_TYPE_PERSON) == ENTRY_TYPE_PERSON]
-
-    async def async_step_advanced(self, user_input: dict[str, Any] | None = None) -> config_entries.FlowResult:
-        people = self._configured_people()
+    async def _async_step_advanced(
+        self,
+        entry: config_entries.ConfigEntry,
+        current: config_entries.ConfigSubentry | None,
+        user_input: dict[str, Any] | None,
+        *,
+        reconfigure: bool,
+    ) -> config_entries.SubentryFlowResult:
+        """Create or update an advanced reminder device."""
+        people = [
+            subentry.data[CONF_PERSON_ENTITY_ID]
+            for subentry in entry.subentries.values()
+            if subentry.subentry_type == ENTRY_TYPE_PERSON
+        ]
         if not people:
             return self.async_abort(reason="no_configured_people")
+        defaults = dict(current.data) if current else {}
+        if user_input:
+            self._advanced_values = {**defaults, **user_input}
+            self._advanced_reconfigure = reconfigure
+            details_schema = _advanced_details_schema(self._advanced_values)
+            if not details_schema.schema:
+                try:
+                    data = _normalise_advanced(self._advanced_values)
+                except vol.Invalid as err:
+                    return self.async_show_form(
+                        step_id="reconfigure" if current else "user",
+                        data_schema=_advanced_schema(defaults, people),
+                        errors={"base": str(err)},
+                    )
+                data[CONF_ENTRY_TYPE] = ENTRY_TYPE_ADVANCED
+                if current:
+                    return self.async_update_reload_and_abort(
+                        entry, current, title=data["title"].strip(), data=data
+                    )
+                return self.async_create_entry(title=data["title"].strip(), data=data)
+            return await self._async_step_advanced_details(
+                entry, current, reconfigure=reconfigure
+            )
+        return self.async_show_form(
+            step_id="reconfigure" if current else "user",
+            data_schema=_advanced_schema(defaults, people),
+        )
+
+    async def async_step_advanced_details(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.SubentryFlowResult:
+        """Resume advanced setup after Home Assistant submits the detail form."""
+        entry = self._get_entry()
+        reconfigure = self._advanced_reconfigure
+        current = self._get_reconfigure_subentry() if reconfigure else None
+        return await self._async_step_advanced_details(
+            entry, current, reconfigure=reconfigure, user_input=user_input
+        )
+
+    async def _async_step_advanced_details(
+        self,
+        entry: config_entries.ConfigEntry,
+        current: config_entries.ConfigSubentry | None,
+        *,
+        reconfigure: bool,
+        user_input: dict[str, Any] | None = None,
+    ) -> config_entries.SubentryFlowResult:
+        """Collect the fields applicable to the chosen advanced schedule."""
+        values = self._advanced_values
         errors: dict[str, str] = {}
         if user_input:
+            values = {**values, **user_input}
+            self._advanced_values = values
             try:
-                data = _normalise_advanced(user_input)
+                data = _normalise_advanced(values)
             except vol.Invalid as err:
                 errors["base"] = str(err)
             else:
                 data[CONF_ENTRY_TYPE] = ENTRY_TYPE_ADVANCED
-                await self.async_set_unique_id(f"advanced-{uuid4()}")
+                if current:
+                    return self.async_update_reload_and_abort(
+                        entry, current, title=data["title"].strip(), data=data
+                    )
                 return self.async_create_entry(title=data["title"].strip(), data=data)
-        return self.async_show_form(step_id="advanced", data_schema=_advanced_schema({}, people), errors=errors)
-
-    @staticmethod
-    @callback
-    def async_get_options_flow(config_entry: config_entries.ConfigEntry) -> OptionsFlow:
-        return OptionsFlow()
+        return self.async_show_form(
+            step_id="advanced_details",
+            data_schema=_advanced_details_schema(values),
+            errors=errors,
+        )
 
 
 class OptionsFlow(config_entries.OptionsFlow):
@@ -233,7 +406,8 @@ class OptionsFlow(config_entries.OptionsFlow):
         if self.config_entry.data.get(CONF_ENTRY_TYPE) == ENTRY_TYPE_ADVANCED:
             return await self.async_step_advanced()
         return self.async_show_menu(
-            step_id="init", menu_options=["person", "add_channel", "edit_channel", "remove_channel"]
+            step_id="init",
+            menu_options=["person", "add_channel", "edit_channel", "test_channel", "remove_channel"],
         )
 
     async def async_step_person(self, user_input: dict[str, Any] | None = None) -> config_entries.FlowResult:
@@ -252,9 +426,11 @@ class OptionsFlow(config_entries.OptionsFlow):
             try:
                 data = _normalise_advanced(user_input)
             except vol.Invalid as err:
-                return self.async_show_form(step_id="advanced", data_schema=_advanced_schema(self._current, people), errors={"base": str(err)})
+                return self.async_show_form(step_id="advanced", data_schema=_advanced_full_schema(self._current, people), errors={"base": str(err)})
             return self.async_create_entry(title="", data={**self.config_entry.options, **data})
-        return self.async_show_form(step_id="advanced", data_schema=_advanced_schema(self._current, people))
+        return self.async_show_form(
+            step_id="advanced", data_schema=_advanced_full_schema(self._current, people)
+        )
 
     async def async_step_add_channel(self, user_input: dict[str, Any] | None = None) -> config_entries.FlowResult:
         if user_input:
@@ -349,3 +525,44 @@ class OptionsFlow(config_entries.OptionsFlow):
         return self.async_show_form(step_id="remove_channel", data_schema=vol.Schema({
             vol.Required("channel_id"): selector.SelectSelector(selector.SelectSelectorConfig(options=[selector.SelectOptionDict(value=item["id"], label=item["name"]) for item in channels]))
         }))
+
+    async def async_step_test_channel(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.FlowResult:
+        """Invoke exactly one configured channel without creating a reminder."""
+        channels = self._current.get(CONF_CHANNELS, [])
+        if not channels:
+            return self.async_abort(reason="no_channels")
+
+        result = "Not run yet."
+        selected_channel_id = None
+        if user_input:
+            selected_channel_id = user_input["channel_id"]
+            success = await self.config_entry.runtime_data.async_test_channel(selected_channel_id)
+            if success:
+                result = "Success: the script confirmed delivery."
+            else:
+                result = "Failed: the script did not confirm delivery."
+
+        channel_field = (
+            vol.Required("channel_id", default=selected_channel_id)
+            if selected_channel_id
+            else vol.Required("channel_id")
+        )
+
+        return self.async_show_form(
+            step_id="test_channel",
+            data_schema=vol.Schema(
+                {
+                    channel_field: selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=[
+                                selector.SelectOptionDict(value=item["id"], label=item["name"])
+                                for item in channels
+                            ]
+                        )
+                    )
+                }
+            ),
+            description_placeholders={"result": result},
+        )

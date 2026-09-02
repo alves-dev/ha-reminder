@@ -2,7 +2,7 @@
 
 from datetime import date, datetime, timedelta
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock, Mock, PropertyMock, patch
 
 import pytest
 from homeassistant.const import STATE_UNAVAILABLE
@@ -10,7 +10,13 @@ from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
 
 from custom_components.ha_reminder.advanced import AdvancedReminderManager
-from custom_components.ha_reminder.config_flow import _normalise, _normalise_advanced
+from custom_components.ha_reminder.config_flow import (
+    ConfigFlow,
+    OptionsFlow,
+    _advanced_details_schema,
+    _normalise,
+    _normalise_advanced,
+)
 from custom_components.ha_reminder.manager import ReminderManager
 from custom_components.ha_reminder.models import Reminder
 from custom_components.ha_reminder.todo import ReminderTodoList
@@ -78,6 +84,7 @@ def _advanced_manager(hass: HomeAssistant) -> AdvancedReminderManager:
             "start_date": (dt_util.now().date() - timedelta(days=1)).isoformat(),
             "time_period": "morning",
             "exact_time": "09:00",
+            "continue_after_exact_time": True,
             "weekdays": [],
             "interval_days": 1,
             "completion_policy": "until_completed",
@@ -108,6 +115,75 @@ def test_normalise_converts_intervals_and_retry_minutes() -> None:
     assert result["retry_interval"] == 300
 
 
+def test_config_flow_supports_person_and_advanced_subentries() -> None:
+    """The integration page can create both supported reminder subentry types."""
+    supported_types = ConfigFlow.async_get_supported_subentry_types(SimpleNamespace())
+
+    assert set(supported_types) == {"person", "advanced"}
+
+
+def test_advanced_details_schema_only_includes_relevant_fields() -> None:
+    """Schedule details do not expose inputs that cannot affect the reminder."""
+    exact_weekdays = _advanced_details_schema(
+        {
+            "time_period": "exact",
+            "schedule_type": "weekdays",
+            "completion_policy": "until_completed",
+        }
+    )
+    morning_interval = _advanced_details_schema(
+        {"time_period": "morning", "schedule_type": "every_days"}
+    )
+    no_details = _advanced_details_schema(
+        {
+            "time_period": "morning",
+            "schedule_type": "daily",
+            "completion_policy": "expire_at_end_of_day",
+        }
+    )
+
+    exact_weekdays_keys = {field.schema for field in exact_weekdays.schema}
+    morning_interval_keys = {field.schema for field in morning_interval.schema}
+    assert exact_weekdays_keys == {
+        "exact_time",
+        "continue_after_exact_time",
+        "weekdays",
+        "recurrence_reference",
+    }
+    assert morning_interval_keys == {"interval_days"}
+    assert not no_details.schema
+
+
+@pytest.mark.asyncio
+async def test_channel_test_failure_uses_description_instead_of_translated_error() -> None:
+    """A failed manual test reports its result without a translated base error."""
+    entry = SimpleNamespace(
+        data={
+            "channels": [
+                {
+                    "id": "mobile",
+                    "name": "Mobile",
+                    "script_entity_id": "script.reminder_mobile_igor",
+                }
+            ]
+        },
+        options={},
+        runtime_data=SimpleNamespace(async_test_channel=AsyncMock(return_value=False)),
+    )
+    flow = OptionsFlow()
+
+    with (
+        patch.object(OptionsFlow, "config_entry", new_callable=PropertyMock, return_value=entry),
+        patch.object(OptionsFlow, "async_show_form", return_value={}) as show_form,
+    ):
+        await flow.async_step_test_channel({"channel_id": "mobile"})
+
+    assert show_form.call_args.kwargs["description_placeholders"] == {
+        "result": "Failed: the script did not confirm delivery."
+    }
+    assert "errors" not in show_form.call_args.kwargs
+
+
 def test_todo_serialization_preserves_date_only_due_value() -> None:
     """Date-only items remain date-only so the manager can use 09:00."""
     todo_item = ReminderTodoList._to_item(
@@ -122,6 +198,15 @@ def test_todo_serialization_preserves_date_only_due_value() -> None:
 
     assert todo_item.due == date(2026, 8, 30)
     assert not isinstance(todo_item.due, datetime)
+
+
+def test_todo_name_does_not_repeat_the_person_name() -> None:
+    """A to-do entity uses a generic name because its device identifies the person."""
+    todo = ReminderTodoList(
+        Mock(), "entry-igor", "person.igor", "Igor", [], AsyncMock()
+    )
+
+    assert todo.name == "To-do list"
 
 
 @pytest.mark.asyncio
@@ -162,6 +247,94 @@ async def test_unavailable_configured_channel_uses_delivery_retry(hass: HomeAssi
 
 
 @pytest.mark.asyncio
+async def test_channel_test_calls_only_selected_script_without_changing_reminders(
+    hass: HomeAssistant,
+) -> None:
+    """A manual channel test uses the script contract without delivery side effects."""
+    manager = _manager(hass)
+    reminder = _reminder()
+    manager.reminders[reminder.item_uid] = reminder
+    reminder_snapshot = reminder.as_dict()
+    hass.states.async_set("script.reminder_mobile_igor", "off")
+
+    with patch.object(
+        type(hass.services), "async_call", new=AsyncMock(return_value={"success": True})
+    ) as async_call:
+        assert await manager.async_test_channel("mobile")
+
+    async_call.assert_awaited_once()
+    assert async_call.await_args.args[:2] == ("script", "reminder_mobile_igor")
+    payload = async_call.await_args.args[-1]
+    assert payload["reminder_id"].startswith("test-")
+    assert payload["person_entity_id"] == "person.igor"
+    assert payload["todo_entity_id"] == "todo.reminders_igor"
+    assert payload["todo_item_uid"] is None
+    assert payload["title"] == "HA Reminder channel test"
+    assert payload["description"] == "This is a manual notification-channel test."
+    assert payload["level"] == "normal"
+    assert payload["attempt"] == 1
+    assert payload["channel_priority"] == 1
+    assert payload["created_at"]
+    assert payload["due_at"] is None
+    assert payload["is_test"] is True
+    assert reminder.as_dict() == reminder_snapshot
+
+
+@pytest.mark.asyncio
+async def test_channel_test_rejects_an_unavailable_script(hass: HomeAssistant) -> None:
+    """An unavailable script is reported as a failed test without invoking it."""
+    manager = _manager(hass)
+    hass.states.async_set("script.reminder_mobile_igor", STATE_UNAVAILABLE)
+
+    with patch.object(type(hass.services), "async_call", new=AsyncMock()) as async_call:
+        assert not await manager.async_test_channel("mobile")
+
+    async_call.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_channel_test_requires_a_success_response(hass: HomeAssistant) -> None:
+    """A script response without a successful contract result fails the test."""
+    manager = _manager(hass)
+    hass.states.async_set("script.reminder_mobile_igor", "off")
+
+    with patch.object(
+        type(hass.services), "async_call", new=AsyncMock(return_value={})
+    ):
+        assert not await manager.async_test_channel("mobile")
+
+
+@pytest.mark.asyncio
+async def test_advanced_delivery_calls_the_response_capable_script_service(
+    hass: HomeAssistant,
+) -> None:
+    """Advanced reminders call the named script service to receive its response."""
+    manager = _advanced_manager(hass)
+    now = dt_util.utcnow().isoformat()
+    manager.store.data = {
+        "active": {
+            "occurrence_id": "occurrence-1",
+            "generation": 1,
+            "scheduled_at": now,
+            "recipients": {"person.igor": {"retries": 0}},
+        }
+    }
+    channel = {
+        "id": "mobile",
+        "script_entity_id": "script.reminder_mobile_igor",
+        "priority": 1,
+    }
+
+    with patch.object(
+        type(hass.services), "async_call", new=AsyncMock(return_value={"success": True})
+    ) as async_call:
+        assert await manager._async_call_channel("person.igor", {}, 1, channel)
+
+    assert async_call.await_args.args[:2] == ("script", "reminder_mobile_igor")
+    assert async_call.await_args.args[-1]["reminder_id"] == "occurrence-1"
+
+
+@pytest.mark.asyncio
 async def test_reopened_item_gets_a_new_generation_after_completion(hass: HomeAssistant) -> None:
     """Late work from a completed item cannot match a reopened item with the same UID."""
     manager = _manager(hass)
@@ -194,6 +367,7 @@ def test_advanced_configuration_rejects_completion_based_expiring_recurrence() -
                 "start_date": "2026-08-30",
                 "time_period": "morning",
                 "exact_time": "09:00",
+                "continue_after_exact_time": True,
                 "weekdays": [],
                 "interval_days": 1,
                 "completion_policy": "expire_at_end_of_day",
@@ -244,6 +418,105 @@ async def test_advanced_completion_is_idempotent(hass: HomeAssistant) -> None:
     assert not await manager.async_complete("occurrence-1")
     assert manager.store.data["active"] is None
     assert manager.store.data["last_status"] == "completed"
+    assert manager.is_completed_today
+
+
+@pytest.mark.asyncio
+async def test_advanced_daily_completion_suppresses_an_active_occurrence(
+    hass: HomeAssistant,
+) -> None:
+    """The device switch completes the current occurrence and records the local day."""
+    manager = _advanced_manager(hass)
+    now = dt_util.utcnow()
+    manager.store.data = {
+        "generation": 1,
+        "active": {
+            "occurrence_id": "occurrence-1",
+            "generation": 1,
+            "scheduled_at": now.isoformat(),
+            "recipients": {"person.igor": {"next_at": now.isoformat(), "cycle": 0, "retries": 0}},
+        },
+        "next_occurrence_at": None,
+        "last_status": "active",
+        "completed_on": None,
+    }
+
+    await manager.async_set_completed_today(True)
+
+    assert manager.is_completed_today
+    assert manager.store.data["active"] is None
+    assert manager.store.data["last_status"] == "completed"
+
+
+@pytest.mark.asyncio
+async def test_advanced_daily_completion_resets_after_midnight(hass: HomeAssistant) -> None:
+    """A stale local completion marker is cleared by the midnight scheduler wake-up."""
+    manager = _advanced_manager(hass)
+    manager.store.data = {
+        "generation": 0,
+        "active": None,
+        "next_occurrence_at": None,
+        "last_status": "completed",
+        "completed_on": (dt_util.now().date() - timedelta(days=1)).isoformat(),
+    }
+
+    assert await manager._async_advance_occurrence_locked()
+    assert manager.store.data["completed_on"] is None
+
+
+@pytest.mark.asyncio
+async def test_exact_time_follow_up_can_be_disabled_per_advanced_reminder(
+    hass: HomeAssistant,
+) -> None:
+    """An exact-time alert can stop after a confirmed initial delivery."""
+    manager = _advanced_manager(hass)
+    manager.data.update({"time_period": "exact", "continue_after_exact_time": False})
+    now = dt_util.utcnow().isoformat()
+    manager.store.data = {
+        "generation": 1,
+        "active": {
+            "occurrence_id": "occurrence-1",
+            "generation": 1,
+            "scheduled_at": now,
+            "recipients": {"person.igor": {"next_at": now, "cycle": 0, "retries": 0}},
+        },
+        "next_occurrence_at": None,
+        "last_status": "active",
+    }
+    manager._person_data = Mock(return_value={"intervals": [900]})
+    manager._configured_channels = Mock(
+        return_value=[{"id": "mobile", "script_entity_id": "script.reminder_mobile_igor"}]
+    )
+    manager._in_quiet_hours = Mock(return_value=False)
+    manager._async_try_channels = AsyncMock(return_value=(True, "mobile"))
+    hass.states.async_set("script.reminder_mobile_igor", "off")
+
+    await manager._async_deliver("person.igor", 1)
+
+    assert manager.store.data["active"]["recipients"]["person.igor"]["follow_up"] is False
+
+
+def test_legacy_low_level_is_normalised_to_normal() -> None:
+    """Saved low-priority advanced reminders migrate to the supported normal level."""
+    result = _normalise_advanced(
+        {
+            "title": "Check car oil",
+            "recipients": ["person.igor"],
+            "level": "low",
+            "schedule_type": "daily",
+            "start_date": "2026-08-30",
+            "time_period": "exact",
+            "exact_time": "13:00",
+            "continue_after_exact_time": True,
+            "weekdays": [],
+            "interval_days": 1,
+            "completion_policy": "expire_at_end_of_day",
+            "recurrence_reference": "schedule",
+            "enabled": True,
+        }
+    )
+
+    assert result["level"] == "normal"
 
 
 def test_completion_anchored_every_days_uses_completion_date(hass: HomeAssistant) -> None:

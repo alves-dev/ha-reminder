@@ -35,12 +35,15 @@ return False, None
 
 - `custom_components/ha_reminder/manager.py` — selects routes, checks responses, and enforces shared-route cooldown.
 - `custom_components/ha_reminder/config_flow.py` — stores per-person route assignments and priorities.
+- `custom_components/ha_reminder/manager.py` — reuses channel invocation safeguards for direct tests.
 
 ## Related
 
 - [Decision: Script-Based Delivery Channels](../../decisions/005-script-based-delivery-channels.md)
 - [Decision: Scheduler and Delivery Policy](../../decisions/004-scheduler-and-delivery-policy.md)
 - [Feature: Configurable Delivery Fallback](../../intent/feature-delivery-fallback.md)
+- [Feature: Delivery Channel Testing](../../intent/feature-delivery-channel-testing.md)
+- [Decision: Isolated Delivery Channel Tests](../../decisions/007-isolated-delivery-channel-tests.md)
 
 ## Status
 

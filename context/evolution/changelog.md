@@ -1,5 +1,69 @@
 # Changelog
 
+# 2026-09-02
+
+- Documented the channel-delivery flow in the architecture guide, including
+  quiet-hours behavior for each notification level and priority fallback.
+- Split advanced reminder configuration into common and schedule-specific steps,
+  so users see only fields that apply to their selections.
+- Avoided the schedule-details page when a selected configuration has no
+  additional fields, allowing the reminder to be saved directly.
+
+# 2026-09-01
+
+- Fixed the per-person to-do entity name so the person's name is not repeated.
+- Removed the low notification level, added an advanced-device notification-level
+  sensor, and normalize legacy low configurations to normal.
+- Added the advanced **Completed today** switch, which suppresses today's
+  delivery and resets automatically at local midnight.
+- Added an advanced exact-time option for continuing follow-up alerts after the
+  initial scheduled notification.
+- Updated HA Reminder's integration release version to 2026.9.0.
+- Replaced the configuration-type selector with separate setup actions for
+  person reminder lists and advanced reminder devices.
+- Migrated person reminder lists and advanced reminder devices into subentries
+  of one HA Reminder entry, preserving their persisted identifiers.
+
+# 2026-08-31
+
+- Fixed channel delivery to call each script's response-capable named service
+  instead of `script.turn_on`; this enables the required `success` response for
+  person and advanced reminders.
+
+# 2026-08-31
+
+- Added the root SonarQube project descriptor for `ha-reminder`, including
+  Python source and test roots, pytest coverage import, and quality-gate wait.
+- Updated the SonarQube GitHub Actions workflow to use the supported Python
+  3.13 runtime while retaining its established public SonarQube endpoint.
+
+# 2026-08-31
+
+- Removed the translated base error from channel tests to prevent cached or
+  malformed error translations from obscuring the test result. Channel-call
+  logs now include the exception message as well as its type.
+
+# 2026-08-31
+
+- Fixed the channel-test failure translation so it no longer treats the script
+  response example as an invalid Home Assistant translation placeholder.
+
+# 2026-08-31
+
+- Added a reusable script blueprint for a notification-channel delivery to one
+  selected `notify` entity, including contract-compliant script responses and
+  distinct manual-test messaging.
+
+# 2026-08-30
+
+- Added a direct notification-channel test in person settings. It invokes only
+  the selected script with `is_test: true`, reports the contract result, and
+  leaves reminder scheduling and fallback unchanged.
+
+# 2026-08-30
+
+- Refreshed the Home Assistant branding assets with complete light and dark reminder icon and logo variants.
+
 # 2026-08-30
 
 - Replaced technical configuration values with human-readable labels and added contextual form
