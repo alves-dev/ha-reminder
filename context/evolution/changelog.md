@@ -2,6 +2,9 @@
 
 # 2026-09-02
 
+- Restored notification-channel management in each person reminder list's
+  reconfiguration flow after the subentry migration. Adding, editing, removing,
+  and testing a channel now persist against the selected person subentry.
 - Fixed HA Reminder setup when integration runtime data already exists: shared
   delivery-channel locks and cooldown timestamps are now initialized per key,
   preserving the registered advanced-reminder managers.

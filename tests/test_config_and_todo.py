@@ -2,7 +2,7 @@
 
 from datetime import date, datetime, timedelta
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, Mock, PropertyMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from homeassistant.const import STATE_UNAVAILABLE
@@ -12,7 +12,7 @@ from homeassistant.util import dt as dt_util
 from custom_components.ha_reminder.advanced import AdvancedReminderManager
 from custom_components.ha_reminder.config_flow import (
     ConfigFlow,
-    OptionsFlow,
+    ReminderSubentryFlow,
     _advanced_details_schema,
     _normalise,
     _normalise_advanced,
@@ -136,6 +136,72 @@ def test_config_flow_supports_person_and_advanced_subentries() -> None:
     assert set(supported_types) == {"person", "advanced"}
 
 
+@pytest.mark.asyncio
+async def test_person_subentry_reconfigure_offers_channel_management() -> None:
+    """Person reconfiguration retains every delivery-channel action."""
+    flow = ReminderSubentryFlow()
+    flow.handler = ("parent-entry", "person")
+
+    with patch.object(flow, "async_show_menu", return_value={}) as show_menu:
+        await flow.async_step_reconfigure()
+
+    assert show_menu.call_args.kwargs == {
+        "step_id": "reconfigure",
+        "menu_options": [
+            "person",
+            "add_channel",
+            "edit_channel",
+            "test_channel",
+            "remove_channel",
+        ],
+    }
+
+
+@pytest.mark.asyncio
+async def test_add_channel_updates_the_person_subentry() -> None:
+    """Adding a channel persists it in the subentry rather than the parent entry."""
+    subentry = SimpleNamespace(
+        data={
+            "person_entity_id": "person.igor",
+            "channels": [],
+            "assignments": [],
+        }
+    )
+    flow = ReminderSubentryFlow()
+
+    with (
+        patch.object(flow, "_get_person_subentry", return_value=subentry),
+        patch.object(flow, "_async_update_person_and_abort", return_value={}) as update,
+    ):
+        await flow.async_step_add_channel(
+            {
+                "script_entity_id": "script.reminder_mobile_igor",
+                "name": "Mobile",
+                "priority": 2,
+                "enabled": True,
+            }
+        )
+
+    assert update.call_args.args[0] == {
+        "person_entity_id": "person.igor",
+        "channels": [
+            {
+                "id": "script.reminder_mobile_igor",
+                "name": "Mobile",
+                "script_entity_id": "script.reminder_mobile_igor",
+                "enabled": True,
+            }
+        ],
+        "assignments": [
+            {
+                "person_entity_id": "person.igor",
+                "channel_id": "script.reminder_mobile_igor",
+                "priority": 2,
+            }
+        ],
+    }
+
+
 def test_advanced_details_schema_only_includes_relevant_fields() -> None:
     """Schedule details do not expose inputs that cannot affect the reminder."""
     exact_weekdays = _advanced_details_schema(
@@ -171,7 +237,8 @@ def test_advanced_details_schema_only_includes_relevant_fields() -> None:
 @pytest.mark.asyncio
 async def test_channel_test_failure_uses_description_instead_of_translated_error() -> None:
     """A failed manual test reports its result without a translated base error."""
-    entry = SimpleNamespace(
+    subentry = SimpleNamespace(
+        subentry_id="person-entry",
         data={
             "channels": [
                 {
@@ -181,14 +248,20 @@ async def test_channel_test_failure_uses_description_instead_of_translated_error
                 }
             ]
         },
-        options={},
-        runtime_data=SimpleNamespace(async_test_channel=AsyncMock(return_value=False)),
     )
-    flow = OptionsFlow()
+    entry = SimpleNamespace(
+        runtime_data={
+            "person_managers": {
+                "person-entry": SimpleNamespace(async_test_channel=AsyncMock(return_value=False))
+            }
+        }
+    )
+    flow = ReminderSubentryFlow()
 
     with (
-        patch.object(OptionsFlow, "config_entry", new_callable=PropertyMock, return_value=entry),
-        patch.object(OptionsFlow, "async_show_form", return_value={}) as show_form,
+        patch.object(flow, "_get_person_subentry", return_value=subentry),
+        patch.object(flow, "_get_entry", return_value=entry),
+        patch.object(flow, "async_show_form", return_value={}) as show_form,
     ):
         await flow.async_step_test_channel({"channel_id": "mobile"})
 
