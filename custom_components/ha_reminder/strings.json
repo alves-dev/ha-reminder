@@ -70,7 +70,8 @@
                 "reconfigure": "Reconfigure person reminder list"
             },
             "abort": {
-                "no_configured_people": "Configure at least one person before creating an advanced reminder."
+                "no_configured_people": "Configure at least one person before creating an advanced reminder.",
+                "no_channels": "No notification channels are configured."
             },
             "step": {
                 "user": {
@@ -87,6 +88,17 @@
                 },
                 "reconfigure": {
                     "title": "Person reminders",
+                    "menu_options": {
+                        "person": "Person settings",
+                        "add_channel": "Add notification channel",
+                        "edit_channel": "Edit notification channel",
+                        "test_channel": "Test notification channel",
+                        "remove_channel": "Remove notification channel"
+                    }
+                },
+                "person": {
+                    "title": "Person settings",
+                    "description": "Changes take effect for this person's list and advanced-reminder deliveries.",
                     "data": {
                         "intervals": "Progressive intervals (for example: 15m, 30m, 1h, 4h)",
                         "quiet_start": "Quiet hours start",
@@ -94,6 +106,40 @@
                         "retry_interval": "Delivery retry interval (minutes)",
                         "max_retries": "Maximum delivery retries"
                     }
+                },
+                "add_channel": {
+                    "title": "Add notification channel",
+                    "description": "The script decides how to send the notification and must return whether it was dispatched.",
+                    "data": {
+                        "script_entity_id": "Notification script",
+                        "name": "Channel name",
+                        "priority": "Priority",
+                        "enabled": "Enabled"
+                    }
+                },
+                "edit_channel": {
+                    "title": "Edit notification channel",
+                    "description": "Choose the channel whose name, priority, or enabled state you want to change.",
+                    "data": {"channel_id": "Channel"}
+                },
+                "edit_channel_details": {
+                    "title": "Edit notification channel",
+                    "description": "The selected script remains associated with this channel.",
+                    "data": {
+                        "name": "Channel name",
+                        "priority": "Priority",
+                        "enabled": "Enabled"
+                    }
+                },
+                "remove_channel": {
+                    "title": "Remove notification channel",
+                    "description": "Removing a channel never removes pending reminders; they use any remaining channels.",
+                    "data": {"channel_id": "Channel"}
+                },
+                "test_channel": {
+                    "title": "Test notification channel",
+                    "description": "Runs only the selected script. It does not create or change reminders, schedules, or fallback. {result}",
+                    "data": {"channel_id": "Notification channel"}
                 }
             }
         },

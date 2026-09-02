@@ -39,6 +39,10 @@ as subentry identifiers, preserving reminder storage, entity unique IDs, and
 device identifiers. Registry ownership is reassigned before legacy entries are
 removed after startup.
 
+Person-subentry reconfiguration contains the person's timing settings and all
+delivery-channel actions. This keeps channel management attached to the person
+that owns the delivery policy after the migration away from independent entries.
+
 ## Related
 
 - [Project Intent](../intent/project-intent.md)

@@ -189,13 +189,6 @@ def _advanced_details_schema(values: dict[str, Any], *, include_all: bool = Fals
     return vol.Schema(schema)
 
 
-def _advanced_full_schema(defaults: dict[str, Any], people: list[str]) -> vol.Schema:
-    """Build the legacy all-fields form used by the independent-entry options flow."""
-    schema = dict(_advanced_schema(defaults, people).schema)
-    schema.update(_advanced_details_schema(defaults, include_all=True).schema)
-    return vol.Schema(schema)
-
-
 def _normalise_advanced(values: dict[str, Any]) -> dict[str, Any]:
     """Validate advanced-reminder cross-field invariants."""
     result = dict(values)
@@ -255,7 +248,18 @@ class ReminderSubentryFlow(config_entries.ConfigSubentryFlow):
     async def async_step_reconfigure(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.SubentryFlowResult:
-        """Edit the selected subentry's core reminder configuration."""
+        """Show the available actions for the selected subentry."""
+        if self._subentry_type == ENTRY_TYPE_PERSON:
+            return self.async_show_menu(
+                step_id="reconfigure",
+                menu_options=[
+                    "person",
+                    "add_channel",
+                    "edit_channel",
+                    "test_channel",
+                    "remove_channel",
+                ],
+            )
         return await self._async_step_configuration(user_input, reconfigure=True)
 
     async def _async_step_configuration(
@@ -292,7 +296,7 @@ class ReminderSubentryFlow(config_entries.ConfigSubentryFlow):
                 data[CONF_ENTRY_TYPE] = ENTRY_TYPE_PERSON
                 name = data[CONF_PERSON_ENTITY_ID].split(".", 1)[1].replace("_", " ").title()
                 if current:
-                    return self.async_update_reload_and_abort(
+                    return self.async_update_and_abort(
                         entry, current, title=f"Reminders — {name}", data=data
                     )
                 return self.async_create_entry(
@@ -340,7 +344,7 @@ class ReminderSubentryFlow(config_entries.ConfigSubentryFlow):
                     )
                 data[CONF_ENTRY_TYPE] = ENTRY_TYPE_ADVANCED
                 if current:
-                    return self.async_update_reload_and_abort(
+                    return self.async_update_and_abort(
                         entry, current, title=data["title"].strip(), data=data
                     )
                 return self.async_create_entry(title=data["title"].strip(), data=data)
@@ -384,7 +388,7 @@ class ReminderSubentryFlow(config_entries.ConfigSubentryFlow):
             else:
                 data[CONF_ENTRY_TYPE] = ENTRY_TYPE_ADVANCED
                 if current:
-                    return self.async_update_reload_and_abort(
+                    return self.async_update_and_abort(
                         entry, current, title=data["title"].strip(), data=data
                     )
                 return self.async_create_entry(title=data["title"].strip(), data=data)
@@ -395,62 +399,96 @@ class ReminderSubentryFlow(config_entries.ConfigSubentryFlow):
         )
 
 
-class OptionsFlow(config_entries.OptionsFlow):
-    """Edit person delivery settings or an advanced reminder definition."""
+    def _get_person_subentry(self) -> config_entries.ConfigSubentry:
+        """Return the person subentry currently being reconfigured."""
+        return self._get_reconfigure_subentry()
 
-    @property
-    def _current(self) -> dict[str, Any]:
-        return {**self.config_entry.data, **self.config_entry.options}
+    def _async_update_person_and_abort(
+        self, data: dict[str, Any]
+    ) -> config_entries.SubentryFlowResult:
+        """Persist person settings; the entry listener reloads its managers."""
+        entry = self._get_entry()
+        subentry = self._get_person_subentry()
+        return self.async_update_and_abort(entry, subentry, data=data)
 
-    async def async_step_init(self, user_input: dict[str, Any] | None = None) -> config_entries.FlowResult:
-        if self.config_entry.data.get(CONF_ENTRY_TYPE) == ENTRY_TYPE_ADVANCED:
-            return await self.async_step_advanced()
-        return self.async_show_menu(
-            step_id="init",
-            menu_options=["person", "add_channel", "edit_channel", "test_channel", "remove_channel"],
-        )
-
-    async def async_step_person(self, user_input: dict[str, Any] | None = None) -> config_entries.FlowResult:
+    async def async_step_person(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.SubentryFlowResult:
+        """Edit the selected person's reminder timing settings."""
+        current = self._get_person_subentry()
+        defaults = dict(current.data)
         if user_input:
             try:
-                data = _normalise({**user_input, CONF_PERSON_ENTITY_ID: self.config_entry.data[CONF_PERSON_ENTITY_ID]})
-                data.pop(CONF_PERSON_ENTITY_ID)
-                return self.async_create_entry(title="", data={**self.config_entry.options, **data})
+                data = _normalise(
+                    {**user_input, CONF_PERSON_ENTITY_ID: defaults[CONF_PERSON_ENTITY_ID]}
+                )
             except vol.Invalid:
-                return self.async_show_form(step_id="person", data_schema=_person_options_schema(self._current), errors={"base": "invalid_intervals"})
-        return self.async_show_form(step_id="person", data_schema=_person_options_schema(self._current))
-
-    async def async_step_advanced(self, user_input: dict[str, Any] | None = None) -> config_entries.FlowResult:
-        people = [entry.data[CONF_PERSON_ENTITY_ID] for entry in self.hass.config_entries.async_entries(DOMAIN) if entry.data.get(CONF_ENTRY_TYPE, ENTRY_TYPE_PERSON) == ENTRY_TYPE_PERSON]
-        if user_input:
-            try:
-                data = _normalise_advanced(user_input)
-            except vol.Invalid as err:
-                return self.async_show_form(step_id="advanced", data_schema=_advanced_full_schema(self._current, people), errors={"base": str(err)})
-            return self.async_create_entry(title="", data={**self.config_entry.options, **data})
+                return self.async_show_form(
+                    step_id="person",
+                    data_schema=_person_options_schema(defaults),
+                    errors={"base": "invalid_intervals"},
+                )
+            return self._async_update_person_and_abort({**defaults, **data})
         return self.async_show_form(
-            step_id="advanced", data_schema=_advanced_full_schema(self._current, people)
+            step_id="person", data_schema=_person_options_schema(defaults)
         )
 
-    async def async_step_add_channel(self, user_input: dict[str, Any] | None = None) -> config_entries.FlowResult:
+    async def async_step_add_channel(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.SubentryFlowResult:
+        """Add a notification script to the selected person's delivery policy."""
         if user_input:
-            current = self._current
+            current = dict(self._get_person_subentry().data)
             script_id = user_input["script_entity_id"]
-            channels = [item for item in current.get(CONF_CHANNELS, []) if item["id"] != script_id]
-            channels.append({"id": script_id, "name": user_input["name"], "script_entity_id": script_id, "enabled": user_input["enabled"]})
-            assignments = [item for item in current.get(CONF_ASSIGNMENTS, []) if item["channel_id"] != script_id]
-            assignments.append({"person_entity_id": current[CONF_PERSON_ENTITY_ID], "channel_id": script_id, "priority": int(user_input["priority"])})
-            return self.async_create_entry(title="", data={**self.config_entry.options, CONF_CHANNELS: channels, CONF_ASSIGNMENTS: assignments})
-        return self.async_show_form(step_id="add_channel", data_schema=vol.Schema({
-            vol.Required("script_entity_id"): selector.EntitySelector(selector.EntitySelectorConfig(domain="script")),
-            vol.Required("name"): str,
-            vol.Required("priority", default=1): selector.NumberSelector(selector.NumberSelectorConfig(min=1, max=99, mode=selector.NumberSelectorMode.BOX)),
-            vol.Required("enabled", default=True): selector.BooleanSelector(),
-        }))
+            channels = [
+                item for item in current.get(CONF_CHANNELS, []) if item["id"] != script_id
+            ]
+            channels.append(
+                {
+                    "id": script_id,
+                    "name": user_input["name"],
+                    "script_entity_id": script_id,
+                    "enabled": user_input["enabled"],
+                }
+            )
+            assignments = [
+                item
+                for item in current.get(CONF_ASSIGNMENTS, [])
+                if item["channel_id"] != script_id
+            ]
+            assignments.append(
+                {
+                    "person_entity_id": current[CONF_PERSON_ENTITY_ID],
+                    "channel_id": script_id,
+                    "priority": int(user_input["priority"]),
+                }
+            )
+            return self._async_update_person_and_abort(
+                {**current, CONF_CHANNELS: channels, CONF_ASSIGNMENTS: assignments}
+            )
+        return self.async_show_form(
+            step_id="add_channel",
+            data_schema=vol.Schema(
+                {
+                    vol.Required("script_entity_id"): selector.EntitySelector(
+                        selector.EntitySelectorConfig(domain="script")
+                    ),
+                    vol.Required("name"): str,
+                    vol.Required("priority", default=1): selector.NumberSelector(
+                        selector.NumberSelectorConfig(
+                            min=1, max=99, mode=selector.NumberSelectorMode.BOX
+                        )
+                    ),
+                    vol.Required("enabled", default=True): selector.BooleanSelector(),
+                }
+            ),
+        )
 
-    async def async_step_edit_channel(self, user_input: dict[str, Any] | None = None) -> config_entries.FlowResult:
-        """Select an existing channel before showing its editable settings."""
-        channels = self._current.get(CONF_CHANNELS, [])
+    async def async_step_edit_channel(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.SubentryFlowResult:
+        """Select a channel before showing its editable settings."""
+        channels = self._get_person_subentry().data.get(CONF_CHANNELS, [])
         if not channels:
             return self.async_abort(reason="no_channels")
         if user_input:
@@ -463,7 +501,9 @@ class OptionsFlow(config_entries.OptionsFlow):
                     vol.Required("channel_id"): selector.SelectSelector(
                         selector.SelectSelectorConfig(
                             options=[
-                                selector.SelectOptionDict(value=item["id"], label=item["name"])
+                                selector.SelectOptionDict(
+                                    value=item["id"], label=item["name"]
+                                )
                                 for item in channels
                             ]
                         )
@@ -474,16 +514,20 @@ class OptionsFlow(config_entries.OptionsFlow):
 
     async def async_step_edit_channel_details(
         self, user_input: dict[str, Any] | None = None
-    ) -> config_entries.FlowResult:
+    ) -> config_entries.SubentryFlowResult:
         """Update the selected channel without changing its script association."""
-        current = self._current
+        current = dict(self._get_person_subentry().data)
         channel_id = self._editing_channel_id
         channel = next(item for item in current[CONF_CHANNELS] if item["id"] == channel_id)
         assignment = next(
-            item for item in current.get(CONF_ASSIGNMENTS, []) if item["channel_id"] == channel_id
+            item
+            for item in current.get(CONF_ASSIGNMENTS, [])
+            if item["channel_id"] == channel_id
         )
         if user_input:
-            channels = [item for item in current[CONF_CHANNELS] if item["id"] != channel_id]
+            channels = [
+                item for item in current[CONF_CHANNELS] if item["id"] != channel_id
+            ]
             channels.append(
                 {
                     **channel,
@@ -492,45 +536,80 @@ class OptionsFlow(config_entries.OptionsFlow):
                 }
             )
             assignments = [
-                item for item in current.get(CONF_ASSIGNMENTS, []) if item["channel_id"] != channel_id
+                item
+                for item in current.get(CONF_ASSIGNMENTS, [])
+                if item["channel_id"] != channel_id
             ]
             assignments.append({**assignment, "priority": int(user_input["priority"])})
-            return self.async_create_entry(
-                title="",
-                data={**self.config_entry.options, CONF_CHANNELS: channels, CONF_ASSIGNMENTS: assignments},
+            return self._async_update_person_and_abort(
+                {**current, CONF_CHANNELS: channels, CONF_ASSIGNMENTS: assignments}
             )
         return self.async_show_form(
             step_id="edit_channel_details",
             data_schema=vol.Schema(
                 {
                     vol.Required("name", default=channel["name"]): str,
-                    vol.Required("priority", default=assignment.get("priority", 1)): selector.NumberSelector(
+                    vol.Required(
+                        "priority", default=assignment.get("priority", 1)
+                    ): selector.NumberSelector(
                         selector.NumberSelectorConfig(
                             min=1, max=99, mode=selector.NumberSelectorMode.BOX
                         )
                     ),
-                    vol.Required("enabled", default=channel.get("enabled", True)): selector.BooleanSelector(),
+                    vol.Required(
+                        "enabled", default=channel.get("enabled", True)
+                    ): selector.BooleanSelector(),
                 }
             ),
         )
 
-    async def async_step_remove_channel(self, user_input: dict[str, Any] | None = None) -> config_entries.FlowResult:
-        current = self._current
+    async def async_step_remove_channel(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.SubentryFlowResult:
+        """Remove a channel and its priority assignment from this person."""
+        current = dict(self._get_person_subentry().data)
         channels = current.get(CONF_CHANNELS, [])
         if not channels:
             return self.async_abort(reason="no_channels")
         if user_input:
             channel_id = user_input["channel_id"]
-            return self.async_create_entry(title="", data={**self.config_entry.options, CONF_CHANNELS: [item for item in channels if item["id"] != channel_id], CONF_ASSIGNMENTS: [item for item in current.get(CONF_ASSIGNMENTS, []) if item["channel_id"] != channel_id]})
-        return self.async_show_form(step_id="remove_channel", data_schema=vol.Schema({
-            vol.Required("channel_id"): selector.SelectSelector(selector.SelectSelectorConfig(options=[selector.SelectOptionDict(value=item["id"], label=item["name"]) for item in channels]))
-        }))
+            return self._async_update_person_and_abort(
+                {
+                    **current,
+                    CONF_CHANNELS: [
+                        item for item in channels if item["id"] != channel_id
+                    ],
+                    CONF_ASSIGNMENTS: [
+                        item
+                        for item in current.get(CONF_ASSIGNMENTS, [])
+                        if item["channel_id"] != channel_id
+                    ],
+                }
+            )
+        return self.async_show_form(
+            step_id="remove_channel",
+            data_schema=vol.Schema(
+                {
+                    vol.Required("channel_id"): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=[
+                                selector.SelectOptionDict(
+                                    value=item["id"], label=item["name"]
+                                )
+                                for item in channels
+                            ]
+                        )
+                    )
+                }
+            ),
+        )
 
     async def async_step_test_channel(
         self, user_input: dict[str, Any] | None = None
-    ) -> config_entries.FlowResult:
-        """Invoke exactly one configured channel without creating a reminder."""
-        channels = self._current.get(CONF_CHANNELS, [])
+    ) -> config_entries.SubentryFlowResult:
+        """Invoke one configured channel without changing reminder state."""
+        subentry = self._get_person_subentry()
+        channels = subentry.data.get(CONF_CHANNELS, [])
         if not channels:
             return self.async_abort(reason="no_channels")
 
@@ -538,18 +617,21 @@ class OptionsFlow(config_entries.OptionsFlow):
         selected_channel_id = None
         if user_input:
             selected_channel_id = user_input["channel_id"]
-            success = await self.config_entry.runtime_data.async_test_channel(selected_channel_id)
-            if success:
-                result = "Success: the script confirmed delivery."
-            else:
-                result = "Failed: the script did not confirm delivery."
+            manager = self._get_entry().runtime_data["person_managers"].get(
+                subentry.subentry_id
+            )
+            success = manager and await manager.async_test_channel(selected_channel_id)
+            result = (
+                "Success: the script confirmed delivery."
+                if success
+                else "Failed: the script did not confirm delivery."
+            )
 
         channel_field = (
             vol.Required("channel_id", default=selected_channel_id)
             if selected_channel_id
             else vol.Required("channel_id")
         )
-
         return self.async_show_form(
             step_id="test_channel",
             data_schema=vol.Schema(
@@ -557,7 +639,9 @@ class OptionsFlow(config_entries.OptionsFlow):
                     channel_field: selector.SelectSelector(
                         selector.SelectSelectorConfig(
                             options=[
-                                selector.SelectOptionDict(value=item["id"], label=item["name"])
+                                selector.SelectOptionDict(
+                                    value=item["id"], label=item["name"]
+                                )
                                 for item in channels
                             ]
                         )
