@@ -2,6 +2,8 @@
 
 # 2026-09-02
 
+- Documented the channel-delivery flow in the architecture guide, including
+  quiet-hours behavior for each notification level and priority fallback.
 - Split advanced reminder configuration into common and schedule-specific steps,
   so users see only fields that apply to their selections.
 - Avoided the schedule-details page when a selected configuration has no
