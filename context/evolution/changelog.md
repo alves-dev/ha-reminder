@@ -2,6 +2,14 @@
 
 # 2026-10-19
 
+- Expanded integration coverage with boundary tests for manager lifecycle,
+  delivery fallback, advanced scheduling, entity views, switches, to-do
+  mutations, runtime subentries, storage defaults, and setup/unload behavior.
+  The local pytest coverage baseline increased from 49% to 66% across the
+  production package.
+
+# 2026-10-19
+
 - Updated the pinned Hassfest Validation GitHub Action to the latest reviewed
   commit on its official `master` branch.
 
