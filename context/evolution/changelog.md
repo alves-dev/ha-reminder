@@ -1,5 +1,10 @@
 # Changelog
 
+# 2026-10-19
+
+- Added field descriptions to Person settings explaining progressive intervals,
+  quiet hours, delivery retries, and retry reset behavior.
+
 # 2026-10-19 — 2026.10.1
 
 - Added an in-flight per-item delivery guard to prevent concurrent duplicate
