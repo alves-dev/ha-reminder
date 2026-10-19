@@ -1,5 +1,10 @@
 # Changelog
 
+# 2026-10-19
+
+- Updated the pinned Hassfest Validation GitHub Action to the latest reviewed
+  commit on its official `master` branch.
+
 # 2026-09-02
 
 - Restored notification-channel management in each person reminder list's
