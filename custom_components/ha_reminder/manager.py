@@ -62,6 +62,7 @@ class ReminderManager:
         self._listeners: list[Callable[[], None]] = []
         self._timer_cancel: CALLBACK_TYPE | None = None
         self._lock = asyncio.Lock()
+        self._in_flight: set[str] = set()
         self._stopped = False
         # Dispatch state lives at integration scope: a script shared by people
         # still receives at most one invocation every five seconds.
@@ -82,6 +83,11 @@ class ReminderManager:
     @property
     def next_reminder(self) -> Reminder | None:
         return min(self.reminders.values(), key=lambda item: item.next_at, default=None)
+
+    @property
+    def delivery_channels(self) -> list[dict[str, Any]]:
+        """Return the enabled delivery channels assigned to this person."""
+        return self._configured_channels()
 
     def async_add_listener(self, listener: Callable[[], None]) -> CALLBACK_TYPE:
         self._listeners.append(listener)
@@ -207,6 +213,20 @@ class ReminderManager:
             self._schedule_next()
 
     async def _async_deliver(self, uid: str, generation: int) -> None:
+        """Deliver one reminder, ignoring duplicate concurrent deliveries."""
+        work = uid
+        async with self._lock:
+            if work in self._in_flight:
+                _LOGGER.debug("Reminder delivery %s generation %s already in flight", uid, generation)
+                return
+            self._in_flight.add(work)
+        try:
+            await self._async_deliver_once(uid, generation)
+        finally:
+            async with self._lock:
+                self._in_flight.discard(work)
+
+    async def _async_deliver_once(self, uid: str, generation: int) -> None:
         async with self._lock:
             reminder = self.reminders.get(uid)
             if self._stopped or not reminder or reminder.generation != generation:

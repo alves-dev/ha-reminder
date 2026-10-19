@@ -1,6 +1,6 @@
 # HA Reminder
 
-![Version](https://img.shields.io/badge/Version-2026.9.0-41BDF5?style=flat-square)
+![Version](https://img.shields.io/badge/Version-2026.10.1-41BDF5?style=flat-square)
 ![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2025.12%2B-41BDF5?logo=homeassistant)
 [![Quality Gate](https://sonar.alves-dev.com/api/project_badges/measure?project=ha-reminder&metric=alert_status)](https://sonar.alves-dev.com/dashboard?id=ha-reminder)
 [![Coverage](https://sonar.alves-dev.com/api/project_badges/measure?project=ha-reminder&metric=coverage)](https://sonar.alves-dev.com/dashboard?id=ha-reminder)
@@ -19,6 +19,36 @@ HA Reminder turns each item in a person's local reminder list into a persistent 
   notification-level and next-occurrence sensors, recurrence, independent
   delivery for each recipient, and shared completion.
 
+## How it works
+
+```mermaid
+flowchart LR
+    T[Pending to-do item] --> M[Person reminder manager]
+    M --> Q{Quiet hours?}
+    Q -- Yes --> W[Wait until quiet hours end]
+    W --> M
+    Q -- No --> P[Try enabled channels by priority]
+    P --> N[Phone, speaker, TV, or other notify target]
+    N --> I[Next progressive interval]
+    I --> M
+```
+
+Each person device exposes three sensors: pending reminders, next reminder, and
+delivery channels. The delivery-channel sensor reports the configured channel
+count and includes each channel's name, priority, and script entity ID in its
+attributes.
+
+### See it in Home Assistant
+
+The integration page groups the person list and its reminder device together:
+
+![HA Reminder integration page](docs/images/ha-reminder-integration.png)
+
+The person device contains the to-do list and all three sensors, including the
+delivery-channel count:
+
+![HA Reminder person device](docs/images/ha-reminder-device.png)
+
 ## HACS availability
 
 This integration is not available in HACS's default catalog. Install it as an HACS custom repository: add `alves-dev/ha-reminder`, choose the Integration category, download it, and restart Home Assistant. Alternatively, copy `custom_components/ha_reminder` to your Home Assistant configuration directory.
@@ -28,11 +58,16 @@ This integration is not available in HACS's default catalog. Install it as an HA
 Add **HA Reminder** once from Settings → Devices & services. On its integration page, choose the
 **Add person reminder list** button to set up a person's reminder list and delivery policy. The
 integration creates a device named `Reminders — <person>`, a `todo.reminders_<person>` list, and
-two sensors.
+three sensors.
 
 Create pending items in that to-do list as usual. Completing or deleting an item stops its future deliveries. Configure notification channels through the integration options; each channel is a `script.*` that receives the documented payload and returns `{success: true}` when it has dispatched the message.
 
 For a standard phone or other `notify.*` entity, import the included [notification-channel script blueprint](blueprints/script/ha_reminder/notification_channel.yaml), create a script from it, and select the notification target. Then add that generated `script.*` as a channel in the person's HA Reminder options. The script marks a manual channel test with `is_test: true` and returns the required response after Home Assistant accepts the notification action.
+
+For a quick test without a phone, copy the [demo notification channel](examples/ha_reminder_demo_channel.yaml)
+into your Home Assistant `scripts.yaml` (or create an equivalent script in the script editor). It
+creates a persistent notification inside Home Assistant and implements the `{success: true}`
+response expected by HA Reminder, so it can be selected as a delivery channel immediately.
 
 Choose **Add advanced reminder device** on that same page to create a device for a one-time or
 recurring household reminder. Select recipients from the people already configured in HA Reminder,

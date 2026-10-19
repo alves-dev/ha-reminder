@@ -2,6 +2,27 @@
 
 # 2026-10-19
 
+- Added a per-person delivery-channel sensor with the channel count and each
+  channel's name, priority, and script entity ID as attributes.
+
+# 2026-10-19
+
+- Added field descriptions to Person settings explaining progressive intervals,
+  quiet hours, delivery retries, and retry reset behavior.
+
+# 2026-10-19 — 2026.10.1
+
+- Added an in-flight per-item delivery guard to prevent concurrent duplicate
+  notifications from the scheduler.
+- Released the integration as version 2026.10.1.
+
+# 2026-10-19
+
+- Prevented concurrent scheduler callbacks from delivering the same reminder generation more than
+  once.
+
+# 2026-10-19
+
 - Added focused config-flow coverage for schemas, validation failures, parent
   setup, person reconfiguration, advanced reminder creation, and channel
   management. `config_flow.py` now reaches 94% local coverage and the full

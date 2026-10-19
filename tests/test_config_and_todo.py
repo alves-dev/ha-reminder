@@ -1,5 +1,6 @@
 """Unit tests for configuration, to-do serialization, and reminder lifecycle behavior."""
 
+import asyncio
 from datetime import date, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
@@ -440,6 +441,31 @@ async def test_reopened_item_gets_a_new_generation_after_completion(hass: HomeAs
     await manager.async_reconcile([item])
 
     assert manager.reminders[reminder.item_uid].generation == 2
+
+
+@pytest.mark.asyncio
+async def test_concurrent_delivery_for_same_generation_is_deduplicated(hass) -> None:
+    """Only one delivery task may process the same reminder generation at once."""
+    manager = _manager(hass)
+    reminder = _reminder()
+    manager.reminders[reminder.item_uid] = reminder
+    manager._generations[reminder.item_uid] = reminder.generation
+    started = asyncio.Event()
+    release = asyncio.Event()
+
+    async def deliver_once(_uid: str, _generation: int) -> None:
+        started.set()
+        await release.wait()
+
+    manager._async_deliver_once = deliver_once
+    first = asyncio.create_task(manager._async_deliver(reminder.item_uid, reminder.generation))
+    await started.wait()
+    await manager._async_deliver(reminder.item_uid, reminder.generation)
+    assert len(manager._in_flight) == 1
+
+    release.set()
+    await first
+    assert not manager._in_flight
 
 
 def test_advanced_configuration_rejects_completion_based_expiring_recurrence() -> None:

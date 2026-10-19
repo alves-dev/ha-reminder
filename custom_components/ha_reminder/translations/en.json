@@ -105,6 +105,13 @@
                         "quiet_end": "Quiet hours end",
                         "retry_interval": "Delivery retry interval (minutes)",
                         "max_retries": "Maximum delivery retries"
+                    },
+                    "data_description": {
+                        "intervals": "After each successful reminder, the next interval is used. When the last interval is reached, it repeats until the item is completed or deleted.",
+                        "quiet_start": "Start of the daily quiet period. Normal reminders are not sent from this time until quiet hours end.",
+                        "quiet_end": "End of the daily quiet period. Pending normal reminders become eligible after this time.",
+                        "retry_interval": "If every configured channel fails, wait this many minutes before trying the delivery again.",
+                        "max_retries": "Number of consecutive retry attempts before the next failure restarts the progressive interval sequence."
                     }
                 },
                 "add_channel": {
@@ -205,6 +212,13 @@
                     "quiet_end": "Quiet hours end",
                     "retry_interval": "Delivery retry interval (minutes)",
                     "max_retries": "Maximum delivery retries"
+                },
+                "data_description": {
+                    "intervals": "After each successful reminder, the next interval is used. When the last interval is reached, it repeats until the item is completed or deleted.",
+                    "quiet_start": "Start of the daily quiet period. Normal reminders are not sent from this time until quiet hours end.",
+                    "quiet_end": "End of the daily quiet period. Pending normal reminders become eligible after this time.",
+                    "retry_interval": "If every configured channel fails, wait this many minutes before trying the delivery again.",
+                    "max_retries": "Number of consecutive retry attempts before the next failure restarts the progressive interval sequence."
                 }
             },
             "advanced": {
@@ -272,6 +286,9 @@
             },
             "next_reminder": {
                 "name": "Next reminder"
+            },
+            "delivery_channels": {
+                "name": "Delivery channels"
             },
             "advanced_status": {
                 "name": "Status"

@@ -1,0 +1,19 @@
+# HA Reminder demo channel.
+# Copy this mapping into scripts.yaml or create an equivalent script in the
+# Home Assistant script editor, then select the resulting script.* as a channel.
+ha_reminder_demo_channel:
+  alias: HA Reminder — Demo notification channel
+  description: Sends reminders to Home Assistant's persistent notification panel.
+  mode: queued
+  max: 10
+  sequence:
+    - action: persistent_notification.create
+      data:
+        title: "{{ title | default('HA Reminder', true) }}"
+        message: >-
+          {{ description | default('You have a pending reminder.', true) }}
+    - variables:
+        response:
+          success: true
+    - stop: Notification accepted by Home Assistant.
+      response_variable: response
