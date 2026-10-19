@@ -35,6 +35,10 @@ After a successful initial delivery, the scheduler advances to the next progress
 missing channel setup is a configuration-incomplete state; configured scripts that are unavailable
 remain a normal complete-delivery failure and use the retry policy.
 
+Concurrent delivery callbacks for the same reminder generation are deduplicated with an in-flight
+guard. The guard is released in a `finally` block so failures cannot permanently suppress later
+reminders.
+
 ## Related
 
 - [Project Intent](../intent/project-intent.md)

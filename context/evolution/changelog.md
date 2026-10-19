@@ -1,5 +1,16 @@
 # Changelog
 
+# 2026-10-19 — 2026.10.1
+
+- Added an in-flight per-item delivery guard to prevent concurrent duplicate
+  notifications from the scheduler.
+- Released the integration as version 2026.10.1.
+
+# 2026-10-19
+
+- Prevented concurrent scheduler callbacks from delivering the same reminder generation more than
+  once.
+
 # 2026-10-19
 
 - Added focused config-flow coverage for schemas, validation failures, parent
