@@ -40,6 +40,7 @@ from custom_components.ha_reminder.sensor import (
     AdvancedNextOccurrenceSensor,
     AdvancedNotificationLevelSensor,
     AdvancedStatusSensor,
+    DeliveryChannelsSensor,
     NextReminderSensor,
     PendingRemindersSensor,
 )
@@ -392,6 +393,14 @@ def test_entity_views_and_listener_cleanup(hass) -> None:
         device_info={"name": "device"},
         reminders={"uid": reminder},
         next_reminder=reminder,
+        delivery_channels=[
+            {
+                "id": "mobile",
+                "name": "Mobile",
+                "priority": 2,
+                "script_entity_id": "script.reminder_mobile",
+            }
+        ],
         async_add_listener=Mock(return_value=lambda: None),
     )
     pending = PendingRemindersSensor(person)
@@ -402,6 +411,17 @@ def test_entity_views_and_listener_cleanup(hass) -> None:
     person.next_reminder = None
     assert next_sensor.native_value is None
     assert next_sensor.extra_state_attributes is None
+    channels = DeliveryChannelsSensor(person)
+    assert channels.native_value == 1
+    assert channels.extra_state_attributes == {
+        "channels": [
+            {
+                "name": "Mobile",
+                "priority": 2,
+                "script_entity_id": "script.reminder_mobile",
+            }
+        ]
+    }
 
     advanced = SimpleNamespace(
         entry=SimpleNamespace(entry_id="advanced"),

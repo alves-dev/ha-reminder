@@ -287,6 +287,9 @@
             "next_reminder": {
                 "name": "Next reminder"
             },
+            "delivery_channels": {
+                "name": "Delivery channels"
+            },
             "advanced_status": {
                 "name": "Status"
             },

@@ -17,6 +17,7 @@ waiting and when the next follow-up is expected.
 - [x] The next scheduled reminder is visible when one exists.
 - [x] The next reminder includes enough information to identify the related item.
 - [x] Status updates when reminder state changes.
+- [x] The configured delivery-channel count and channel details are visible per person.
 
 ## Related
 

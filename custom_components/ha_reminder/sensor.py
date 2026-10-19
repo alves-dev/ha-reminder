@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -18,7 +20,11 @@ async def async_setup_entry(
 ) -> None:
     for manager in entry.runtime_data["person_managers"].values():
         async_add_entities(
-            [PendingRemindersSensor(manager), NextReminderSensor(manager)],
+            [
+                PendingRemindersSensor(manager),
+                NextReminderSensor(manager),
+                DeliveryChannelsSensor(manager),
+            ],
             config_subentry_id=manager.entry.entry_id,
         )
     for manager in entry.runtime_data["advanced_managers"].values():
@@ -73,6 +79,34 @@ class NextReminderSensor(_BaseSensor):
         if not reminder:
             return None
         return {"reminder_id": reminder.reminder_id, "title": reminder.title, "reason": "scheduled"}
+
+
+class DeliveryChannelsSensor(_BaseSensor):
+    """Expose the configured delivery channels for a person."""
+
+    _attr_translation_key = "delivery_channels"
+    _attr_icon = "mdi:message-badge-outline"
+
+    def __init__(self, manager: ReminderManager) -> None:
+        super().__init__(manager)
+        self._attr_unique_id = f"{manager.entry.entry_id}_delivery_channels"
+
+    @property
+    def native_value(self) -> int:
+        return len(self.manager.delivery_channels)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        return {
+            "channels": [
+                {
+                    "name": channel.get("name", channel["id"]),
+                    "priority": channel["priority"],
+                    "script_entity_id": channel["script_entity_id"],
+                }
+                for channel in self.manager.delivery_channels
+            ]
+        }
 
 
 class _AdvancedBaseSensor(SensorEntity):

@@ -2,6 +2,11 @@
 
 # 2026-10-19
 
+- Added a per-person delivery-channel sensor with the channel count and each
+  channel's name, priority, and script entity ID as attributes.
+
+# 2026-10-19
+
 - Added field descriptions to Person settings explaining progressive intervals,
   quiet hours, delivery retries, and retry reset behavior.
 

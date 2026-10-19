@@ -84,6 +84,11 @@ class ReminderManager:
     def next_reminder(self) -> Reminder | None:
         return min(self.reminders.values(), key=lambda item: item.next_at, default=None)
 
+    @property
+    def delivery_channels(self) -> list[dict[str, Any]]:
+        """Return the enabled delivery channels assigned to this person."""
+        return self._configured_channels()
+
     def async_add_listener(self, listener: Callable[[], None]) -> CALLBACK_TYPE:
         self._listeners.append(listener)
         return lambda: self._listeners.remove(listener) if listener in self._listeners else None

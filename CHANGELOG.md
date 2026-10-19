@@ -2,6 +2,20 @@
 
 All user-relevant changes are documented in this file.
 
+## [2026.10.1] - 2026-10-19
+
+### Added
+
+- Added a per-person delivery-channel sensor with the channel count and each
+  channel's name, priority, and script entity ID as attributes.
+- Added descriptions to Person settings for progressive intervals, quiet hours,
+  delivery retries, and retry reset behavior.
+
+### Fixed
+
+- Prevented concurrent scheduler callbacks from delivering the same reminder
+  more than once.
+
 ## [2026.9.0] - 2026-09-01
 
 ### Changed
