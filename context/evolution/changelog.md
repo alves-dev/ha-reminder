@@ -1,5 +1,25 @@
 # Changelog
 
+# 2026-10-19
+
+- Added focused config-flow coverage for schemas, validation failures, parent
+  setup, person reconfiguration, advanced reminder creation, and channel
+  management. `config_flow.py` now reaches 94% local coverage and the full
+  integration reaches 75%.
+
+# 2026-10-19
+
+- Expanded integration coverage with boundary tests for manager lifecycle,
+  delivery fallback, advanced scheduling, entity views, switches, to-do
+  mutations, runtime subentries, storage defaults, and setup/unload behavior.
+  The local pytest coverage baseline increased from 49% to 66% across the
+  production package.
+
+# 2026-10-19
+
+- Updated the pinned Hassfest Validation GitHub Action to the latest reviewed
+  commit on its official `master` branch.
+
 # 2026-09-02
 
 - Restored notification-channel management in each person reminder list's

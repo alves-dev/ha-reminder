@@ -39,7 +39,9 @@ exclude production logic.
 
 The workflow produces `coverage.xml` before the scan. Repository administrators
 must provide `SONAR_TOKEN` as a GitHub Actions repository secret; the configured
-SonarQube quality gate enforces coverage thresholds.
+SonarQube quality gate enforces coverage thresholds. On 2026-10-19, boundary
+tests raised the local package coverage baseline from 49% to 66%; additional
+production-path tests remain the appropriate route toward the 80% target.
 
 ## Related
 
