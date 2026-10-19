@@ -11,8 +11,14 @@ from homeassistant.util import dt as dt_util
 from custom_components.ha_reminder import async_setup_entry, async_unload_entry
 from custom_components.ha_reminder.advanced import AdvancedReminderStore
 from custom_components.ha_reminder.config_flow import (
+    ConfigFlow,
+    ReminderSubentryFlow,
+    _advanced_details_schema,
+    _advanced_schema,
     _normalise,
     _normalise_advanced,
+    _person_options_schema,
+    _schema,
 )
 from custom_components.ha_reminder.const import (
     CONF_CONTINUE_AFTER_EXACT_TIME,
@@ -67,6 +73,195 @@ def test_manager_properties_and_timing_helpers(hass) -> None:
     )
     assert manager._parse_due("2026-10-19T12:00:00") is not None
     assert manager._configured_channels() == []
+
+
+def test_config_schemas_and_cross_field_validation() -> None:
+    """Build all form variants and cover advanced validation failures."""
+    defaults = {
+        "person_entity_id": "person.jane",
+        "intervals": [60, 120],
+        "retry_interval": 300,
+        "max_retries": 2,
+    }
+    assert _schema(defaults).schema
+    assert _person_options_schema(defaults).schema
+    assert _advanced_schema({}, ["person.jane"]).schema
+    assert _advanced_details_schema({}, include_all=True).schema
+
+    base = {
+        "title": " ",
+        "recipients": [],
+        "level": "normal",
+        "schedule_type": "once",
+        "start_date": "2026-10-20",
+        "time_period": "exact",
+        "completion_policy": "until_completed",
+    }
+    with pytest.raises(vol.Invalid, match="invalid_advanced_reminder"):
+        _normalise_advanced(base)
+    base.update({"title": "Reminder", "recipients": ["person.jane"], "completion_policy": "expire_at_end_of_day", "recurrence_reference": "completion"})
+    with pytest.raises(vol.Invalid, match="invalid_completion_reference"):
+        _normalise_advanced(base)
+    base.update({"completion_policy": "until_completed", "schedule_type": "weekdays", "weekdays": []})
+    with pytest.raises(vol.Invalid, match="missing_weekdays"):
+        _normalise_advanced(base)
+    with pytest.raises(vol.Invalid, match="invalid_intervals"):
+        _normalise({"intervals": "0m", "retry_interval": 5, "max_retries": 1})
+    assert _advanced_schema({"level": "low"}, ["person.jane"]).schema
+
+
+@pytest.mark.asyncio
+async def test_parent_and_person_flow_creation_paths(hass) -> None:
+    """Exercise parent setup and person create/reconfigure results."""
+    parent = ConfigFlow()
+    parent.hass = hass
+    with patch.object(parent, "async_create_entry", return_value={}) as create:
+        await parent.async_step_user()
+    create.assert_called_once_with(title="HA Reminder", data={})
+
+    hass.config_entries.async_entries = Mock(return_value=[Mock()])
+    with patch.object(parent, "async_abort", return_value={}) as abort:
+        await parent.async_step_user()
+    abort.assert_called_once_with(reason="already_configured")
+
+    flow = ReminderSubentryFlow()
+    flow.handler = ("parent-entry", "person")
+    flow.hass = hass
+    entry = SimpleNamespace(subentries={})
+    person_input = {
+        "person_entity_id": "person.jane",
+        "intervals": "15m, 1h",
+        "quiet_start": "22:00",
+        "quiet_end": "07:00",
+        "retry_interval": 5,
+        "max_retries": 2,
+    }
+    with patch.object(flow, "_get_entry", return_value=entry), patch.object(
+        flow, "async_show_form", return_value={}
+    ) as show:
+        await flow.async_step_user()
+        with patch.object(flow, "async_create_entry", return_value={}) as create:
+            await flow.async_step_user(person_input)
+    assert show.call_args.kwargs["step_id"] == "user"
+    assert create.call_args.kwargs["title"] == "Reminders — Jane"
+    assert create.call_args.kwargs["data"]["entry_type"] == "person"
+
+
+@pytest.mark.asyncio
+async def test_person_flow_invalid_and_channel_management_forms() -> None:
+    """Cover invalid person input and edit/remove channel branches."""
+    flow = ReminderSubentryFlow()
+    flow.handler = ("parent-entry", "person")
+    entry = SimpleNamespace(subentries={})
+    with (
+        patch.object(flow, "_get_entry", return_value=entry),
+        patch.object(flow, "async_show_form", return_value={}) as show,
+    ):
+        await flow.async_step_user({"person_entity_id": "person.jane", "intervals": "bad"})
+    assert show.call_args.kwargs["errors"] == {"base": "invalid_intervals"}
+
+    subentry = SimpleNamespace(
+        subentry_id="person-entry",
+        data={
+            "person_entity_id": "person.jane",
+            "channels": [{"id": "mobile", "name": "Mobile", "enabled": True}],
+            "assignments": [{"channel_id": "mobile", "priority": 1}],
+        },
+    )
+    flow._get_person_subentry = Mock(return_value=subentry)
+    flow._async_update_person_and_abort = Mock(return_value={})
+    with patch.object(flow, "async_show_form", return_value={}) as show:
+        await flow.async_step_edit_channel()
+        flow._editing_channel_id = "mobile"
+        await flow.async_step_edit_channel_details()
+        await flow.async_step_remove_channel()
+    assert show.call_count == 3
+    await flow.async_step_edit_channel({"channel_id": "mobile"})
+    await flow.async_step_edit_channel_details({"name": "Phone", "priority": 2, "enabled": False})
+    await flow.async_step_remove_channel({"channel_id": "mobile"})
+    assert flow._async_update_person_and_abort.call_count == 2
+
+    empty = SimpleNamespace(data={"channels": [], "assignments": []})
+    flow._get_person_subentry = Mock(return_value=empty)
+    with patch.object(flow, "async_abort", return_value={}) as abort:
+        await flow.async_step_edit_channel()
+        await flow.async_step_remove_channel()
+        await flow.async_step_test_channel()
+    assert abort.call_count == 3
+
+
+@pytest.mark.asyncio
+async def test_person_reconfigure_and_advanced_flow_paths() -> None:
+    """Cover person updates and both direct and detail advanced submissions."""
+    from custom_components.ha_reminder.config_flow import ReminderSubentryFlow
+
+    person = SimpleNamespace(
+        subentry_id="person-entry",
+        subentry_type="person",
+        data={
+            "person_entity_id": "person.jane",
+            "intervals": [900],
+            "quiet_start": "22:00",
+            "quiet_end": "07:00",
+            "retry_interval": 300,
+            "max_retries": 2,
+        },
+    )
+    entry = SimpleNamespace(subentries={"person-entry": person})
+    flow = ReminderSubentryFlow()
+    flow.handler = ("parent-entry", "person")
+    flow._get_entry = Mock(return_value=entry)
+    flow._get_reconfigure_subentry = Mock(return_value=person)
+    flow._async_update_person_and_abort = Mock(return_value={})
+    with patch.object(flow, "async_show_form", return_value={}) as show:
+        await flow.async_step_reconfigure()
+        await flow.async_step_person()
+    assert show.call_args.kwargs["step_id"] == "person"
+    await flow.async_step_person(
+        {"intervals": "30m", "quiet_start": "21:00", "quiet_end": "06:00", "retry_interval": 4, "max_retries": 1}
+    )
+    flow._async_update_person_and_abort.assert_called_once()
+
+    advanced_flow = ReminderSubentryFlow()
+    advanced_flow.handler = ("parent-entry", "advanced")
+    advanced_flow._get_entry = Mock(return_value=entry)
+    with patch.object(advanced_flow, "async_abort", return_value={}) as abort:
+        empty_entry = SimpleNamespace(subentries={})
+        advanced_flow._get_entry = Mock(return_value=empty_entry)
+        await advanced_flow.async_step_user()
+    abort.assert_called_once_with(reason="no_configured_people")
+    advanced_flow._get_entry = Mock(return_value=entry)
+    direct = {
+        "title": "Daily reminder",
+        "recipients": ["person.jane"],
+        "level": "normal",
+        "schedule_type": "daily",
+        "start_date": "2026-10-20",
+        "time_period": "morning",
+        "completion_policy": "expire_at_end_of_day",
+    }
+    with patch.object(advanced_flow, "async_create_entry", return_value={}) as create:
+        await advanced_flow.async_step_user(direct)
+    assert create.call_args.kwargs["title"] == "Daily reminder"
+
+    detailed = dict(direct, title="Exact reminder", time_period="exact")
+    with patch.object(advanced_flow, "async_show_form", return_value={}) as show:
+        await advanced_flow.async_step_user(detailed)
+    with patch.object(advanced_flow, "async_create_entry", return_value={}) as create:
+        await advanced_flow.async_step_advanced_details({"exact_time": "08:00"})
+    assert create.call_args.kwargs["title"] == "Exact reminder"
+
+    advanced_flow._get_reconfigure_subentry = Mock(return_value=None)
+    with patch.object(advanced_flow, "async_show_form", return_value={}) as show:
+        await advanced_flow.async_step_reconfigure()
+    assert show.call_args.kwargs["step_id"] == "user"
+
+    person_flow = ReminderSubentryFlow()
+    person_flow.handler = ("parent-entry", "person")
+    person_flow._get_person_subentry = Mock(return_value=person)
+    with patch.object(person_flow, "async_show_form", return_value={}) as show:
+        await person_flow.async_step_add_channel()
+    assert show.call_args.kwargs["step_id"] == "add_channel"
 
 
 @pytest.mark.asyncio

@@ -2,6 +2,13 @@
 
 # 2026-10-19
 
+- Added focused config-flow coverage for schemas, validation failures, parent
+  setup, person reconfiguration, advanced reminder creation, and channel
+  management. `config_flow.py` now reaches 94% local coverage and the full
+  integration reaches 75%.
+
+# 2026-10-19
+
 - Expanded integration coverage with boundary tests for manager lifecycle,
   delivery fallback, advanced scheduling, entity views, switches, to-do
   mutations, runtime subentries, storage defaults, and setup/unload behavior.
