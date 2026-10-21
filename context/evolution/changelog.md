@@ -1,5 +1,13 @@
 # Changelog
 
+# 2026-10-21
+
+- Clarified the progressive-interval descriptions: the first interval schedules the first
+  reminder, the sequence does not restart daily, and the final interval repeats indefinitely.
+- Added the same field descriptions to the person-reminder creation form, not only the edit form.
+- Prevented a person with an existing person reminder list from being offered again when
+  creating another person reminder list; people may still be used by multiple advanced devices.
+
 # 2026-10-19
 
 - Added a per-person delivery-channel sensor with the channel count and each

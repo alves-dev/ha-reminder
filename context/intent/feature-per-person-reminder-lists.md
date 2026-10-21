@@ -18,6 +18,8 @@ reminders.
 - [x] A pending list item becomes an independently managed reminder.
 - [x] Completing or deleting an item prevents further reminders for it.
 - [x] Editing an outstanding item restarts its reminder follow-up.
+- [x] A person can have only one configured reminder list; the creation form
+  excludes people who already have one.
 
 ## Related
 

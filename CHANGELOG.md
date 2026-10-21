@@ -2,6 +2,20 @@
 
 All user-relevant changes are documented in this file.
 
+## [2026.10.2] - 2026-10-21
+
+### Changed
+
+- Clarified progressive interval descriptions with an explicit example showing
+  that the sequence does not restart daily and the final interval repeats indefinitely.
+- Added the same field descriptions to the person-reminder creation form, not only the edit form.
+
+### Fixed
+
+- Prevented creating more than one person reminder list for the same person by
+  excluding already configured people from the creation selector.
+- Kept people available for any number of advanced reminder devices.
+
 ## [2026.10.1] - 2026-10-19
 
 ### Added
