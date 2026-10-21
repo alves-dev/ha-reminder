@@ -57,11 +57,18 @@ from .const import (
 )
 
 
-def _schema(defaults: dict[str, Any] | None = None) -> vol.Schema:
+def _schema(
+    defaults: dict[str, Any] | None = None,
+    *,
+    excluded_people: list[str] | None = None,
+) -> vol.Schema:
     """Build the person-configuration form."""
     defaults = defaults or {}
+    person_selector = selector.EntitySelectorConfig(
+        domain="person", exclude_entities=excluded_people or []
+    )
     return vol.Schema({
-        vol.Required(CONF_PERSON_ENTITY_ID, default=defaults.get(CONF_PERSON_ENTITY_ID)): selector.EntitySelector(selector.EntitySelectorConfig(domain="person")),
+        vol.Required(CONF_PERSON_ENTITY_ID, default=defaults.get(CONF_PERSON_ENTITY_ID)): selector.EntitySelector(person_selector),
         vol.Required(CONF_INTERVALS, default=", ".join(f"{v // 60}m" for v in defaults.get(CONF_INTERVALS, DEFAULT_INTERVALS))): str,
         vol.Required(CONF_QUIET_START, default=defaults.get(CONF_QUIET_START, "22:00")): str,
         vol.Required(CONF_QUIET_END, default=defaults.get(CONF_QUIET_END, "07:00")): str,
@@ -283,34 +290,47 @@ class ReminderSubentryFlow(config_entries.ConfigSubentryFlow):
         """Create or update a person reminder list."""
         errors: dict[str, str] = {}
         defaults = dict(current.data) if current else {}
+        configured_people = {
+            subentry.data[CONF_PERSON_ENTITY_ID]
+            for subentry in entry.subentries.values()
+            if subentry.subentry_type == ENTRY_TYPE_PERSON
+        }
         if user_input:
-            try:
-                data = _normalise(
-                    user_input
-                    if current is None
-                    else {**user_input, CONF_PERSON_ENTITY_ID: defaults[CONF_PERSON_ENTITY_ID]}
-                )
-            except vol.Invalid:
-                errors["base"] = "invalid_intervals"
+            selected_person = user_input.get(CONF_PERSON_ENTITY_ID)
+            if current is None and selected_person in configured_people:
+                errors["base"] = "person_already_configured"
             else:
-                data[CONF_ENTRY_TYPE] = ENTRY_TYPE_PERSON
-                name = data[CONF_PERSON_ENTITY_ID].split(".", 1)[1].replace("_", " ").title()
-                if current:
-                    return self.async_update_and_abort(
-                        entry, current, title=f"Reminders — {name}", data=data
+                try:
+                    data = _normalise(
+                        user_input
+                        if current is None
+                        else {**user_input, CONF_PERSON_ENTITY_ID: defaults[CONF_PERSON_ENTITY_ID]}
                     )
-                return self.async_create_entry(
-                    title=f"Reminders — {name}",
-                    data=data,
-                    unique_id=data[CONF_PERSON_ENTITY_ID],
-                )
+                except vol.Invalid:
+                    errors["base"] = "invalid_intervals"
+                else:
+                    data[CONF_ENTRY_TYPE] = ENTRY_TYPE_PERSON
+                    name = data[CONF_PERSON_ENTITY_ID].split(".", 1)[1].replace("_", " ").title()
+                    if current:
+                        return self.async_update_and_abort(
+                            entry, current, title=f"Reminders — {name}", data=data
+                        )
+                    return self.async_create_entry(
+                        title=f"Reminders — {name}",
+                        data=data,
+                        unique_id=data[CONF_PERSON_ENTITY_ID],
+                    )
         if current:
             return self.async_show_form(
                 step_id="reconfigure",
                 data_schema=_person_options_schema(defaults),
                 errors=errors,
             )
-        return self.async_show_form(step_id="user", data_schema=_schema(defaults), errors=errors)
+        return self.async_show_form(
+            step_id="user",
+            data_schema=_schema(defaults, excluded_people=list(configured_people)),
+            errors=errors,
+        )
 
     async def _async_step_advanced(
         self,
