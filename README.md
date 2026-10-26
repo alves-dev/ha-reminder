@@ -51,7 +51,9 @@ delivery-channel count:
 
 ## HACS availability
 
-This integration is not available in HACS's default catalog. Install it as an HACS custom repository: add `alves-dev/ha-reminder`, choose the Integration category, download it, and restart Home Assistant. Alternatively, copy `custom_components/ha_reminder` to your Home Assistant configuration directory.
+This integration is available in HACS's default catalog. In Home Assistant, open HACS,
+search for **HA Reminder**, install it, and restart Home Assistant. Alternatively, copy
+`custom_components/ha_reminder` to your Home Assistant configuration directory.
 
 ## Configuration and use
 
