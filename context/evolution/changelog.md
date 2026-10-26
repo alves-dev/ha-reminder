@@ -1,5 +1,11 @@
 # Changelog
 
+
+# 2026-10-26
+
+- Updated the README to reflect that HA Reminder is available in the default HACS catalog.
+
+
 # 2026-10-21
 
 - Clarified the progressive-interval descriptions: the first interval schedules the first
