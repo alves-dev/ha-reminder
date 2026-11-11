@@ -2,6 +2,8 @@
 
 # 2026-11-11
 
+- Refactored person config-flow submission handling to satisfy the Sonar cognitive
+  complexity rule while preserving duplicate-person and interval validation.
 - Fixed test discovery by declaring the repository root on pytest's Python path.
 - Updated advanced config schemas for the Home Assistant 2026.10 flow API and
   expanded boundary coverage to 80% across 46 tests.

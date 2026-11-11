@@ -306,7 +306,6 @@ class ReminderSubentryFlow(config_entries.ConfigSubentryFlow):
         user_input: dict[str, Any] | None,
     ) -> config_entries.SubentryFlowResult:
         """Create or update a person reminder list."""
-        errors: dict[str, str] = {}
         defaults = dict(current.data) if current else {}
         configured_people = {
             subentry.data[CONF_PERSON_ENTITY_ID]
@@ -314,30 +313,13 @@ class ReminderSubentryFlow(config_entries.ConfigSubentryFlow):
             if subentry.subentry_type == ENTRY_TYPE_PERSON
         }
         if user_input:
-            selected_person = user_input.get(CONF_PERSON_ENTITY_ID)
-            if current is None and selected_person in configured_people:
-                errors["base"] = "person_already_configured"
-            else:
-                try:
-                    data = _normalise(
-                        user_input
-                        if current is None
-                        else {**user_input, CONF_PERSON_ENTITY_ID: defaults[CONF_PERSON_ENTITY_ID]}
-                    )
-                except vol.Invalid:
-                    errors["base"] = "invalid_intervals"
-                else:
-                    data[CONF_ENTRY_TYPE] = ENTRY_TYPE_PERSON
-                    name = data[CONF_PERSON_ENTITY_ID].split(".", 1)[1].replace("_", " ").title()
-                    if current:
-                        return self.async_update_and_abort(
-                            entry, current, title=f"Reminders — {name}", data=data
-                        )
-                    return self.async_create_entry(
-                        title=f"Reminders — {name}",
-                        data=data,
-                        unique_id=data[CONF_PERSON_ENTITY_ID],
-                    )
+            result, errors = self._async_process_person_input(
+                entry, current, defaults, configured_people, user_input
+            )
+            if result is not None:
+                return result
+        else:
+            errors = {}
         if current:
             return self.async_show_form(
                 step_id="reconfigure",
@@ -348,6 +330,45 @@ class ReminderSubentryFlow(config_entries.ConfigSubentryFlow):
             step_id="user",
             data_schema=_schema(defaults, excluded_people=list(configured_people)),
             errors=errors,
+        )
+
+    def _async_process_person_input(
+        self,
+        entry: config_entries.ConfigEntry,
+        current: config_entries.ConfigSubentry | None,
+        defaults: dict[str, Any],
+        configured_people: set[str],
+        user_input: dict[str, Any],
+    ) -> tuple[config_entries.SubentryFlowResult | None, dict[str, str]]:
+        """Validate and persist one submitted person form."""
+        if current is None and user_input.get(CONF_PERSON_ENTITY_ID) in configured_people:
+            return None, {"base": "person_already_configured"}
+        values = (
+            user_input
+            if current is None
+            else {**user_input, CONF_PERSON_ENTITY_ID: defaults[CONF_PERSON_ENTITY_ID]}
+        )
+        try:
+            data = _normalise(values)
+        except vol.Invalid:
+            return None, {"base": "invalid_intervals"}
+
+        data[CONF_ENTRY_TYPE] = ENTRY_TYPE_PERSON
+        name = data[CONF_PERSON_ENTITY_ID].split(".", 1)[1].replace("_", " ").title()
+        if current:
+            return (
+                self.async_update_and_abort(
+                    entry, current, title=f"Reminders — {name}", data=data
+                ),
+                {},
+            )
+        return (
+            self.async_create_entry(
+                title=f"Reminders — {name}",
+                data=data,
+                unique_id=data[CONF_PERSON_ENTITY_ID],
+            ),
+            {},
         )
 
     async def _async_step_advanced(
