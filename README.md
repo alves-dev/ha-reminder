@@ -2,6 +2,7 @@
 
 ![Version](https://img.shields.io/badge/Version-2026.10.2-41BDF5?style=flat-square)
 ![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2025.12%2B-41BDF5?logo=homeassistant)
+![Marketplace](https://img.shields.io/badge/Marketplace-Default%20Repository-18BC9C?style=flat-square)
 [![Quality Gate](https://sonar.alves-dev.com/api/project_badges/measure?project=ha-reminder&metric=alert_status)](https://sonar.alves-dev.com/dashboard?id=ha-reminder)
 [![Coverage](https://sonar.alves-dev.com/api/project_badges/measure?project=ha-reminder&metric=coverage)](https://sonar.alves-dev.com/dashboard?id=ha-reminder)
 
@@ -49,11 +50,12 @@ delivery-channel count:
 
 ![HA Reminder person device](docs/images/ha-reminder-device.png)
 
-## HACS availability
+## Marketplace availability
 
-This integration is available in HACS's default catalog. In Home Assistant, open HACS,
-search for **HA Reminder**, install it, and restart Home Assistant. Alternatively, copy
-`custom_components/ha_reminder` to your Home Assistant configuration directory.
+This integration is available in Marketplace's default catalog. In Home Assistant, open
+the Marketplace, search for **HA Reminder**, install it, and restart Home
+Assistant. Manual installation is also supported: copy `custom_components/ha_reminder` to
+your Home Assistant configuration directory.
 
 ## Configuration and use
 

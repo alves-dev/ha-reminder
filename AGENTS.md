@@ -7,12 +7,13 @@
 - Lint: `uv run ruff check .`
 - Validate: `python3 /home/alves-dev/.codex/skills/home-assistant-integration-standards/scripts/validate_integration_structure.py .`
 - Compile: `python3 -m compileall custom_components`
-- Local Home Assistant: `dev/start-ha.sh`, `dev/stop-ha.sh`, and `dev/copy-to-core.sh`
+- Local Home Assistant: `dev/start-ha.sh`, `dev/stop-ha.sh`, and `dev/deploy-to-ha.sh`
+- Shared environment reference: `docs/local-home-assistant.md`
 
-There is no separate build artifact for this custom integration. `dev/copy-to-core.sh`
-deploys it to the shared local Home Assistant configuration and restarts that
-instance. The start and stop helpers manage the shared instance; use them only
-when local Home Assistant testing is needed.
+There is no separate build artifact for this custom integration. `dev/start-ha.sh` and
+`dev/stop-ha.sh` manage the shared Docker container `hass-dev-homeassistant`, while
+`dev/deploy-to-ha.sh` deploys this integration to the mounted configuration and restarts
+the container. See `docs/local-home-assistant.md` for the shared environment details.
 
 ## Code Style
 

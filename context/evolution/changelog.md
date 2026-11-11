@@ -1,5 +1,10 @@
 # Changelog
 
+# 2026-11-11
+
+- Migrated the local Home Assistant helpers to the shared Docker container
+  workflow and aligned the repository documentation with the Marketplace
+  installation and development environment standards.
 
 # 2026-10-26
 
