@@ -12,7 +12,8 @@ Represent each advanced reminder as its own config entry and logical Home
 Assistant device. Its manager persists one occurrence and recipient state per
 active reminder, while reading recipient delivery configuration from the
 existing person entries. Expose a switch and status sensors on the reminder
-device, and route completion through one integration action.
+device, including a sensor for the configured recipients, and route completion
+through one integration action.
 
 ## Rationale
 

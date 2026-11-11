@@ -1,6 +1,6 @@
 """Coverage for integration boundaries and policy branches."""
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
 
@@ -8,12 +8,15 @@ import pytest
 import voluptuous as vol
 from homeassistant.util import dt as dt_util
 
-from custom_components.ha_reminder import async_setup_entry, async_unload_entry
+from custom_components.ha_reminder import (
+    _async_register_services,
+    async_setup_entry,
+    async_unload_entry,
+)
 from custom_components.ha_reminder.advanced import AdvancedReminderStore
 from custom_components.ha_reminder.config_flow import (
     ConfigFlow,
     ReminderSubentryFlow,
-    _advanced_details_schema,
     _advanced_schema,
     _normalise,
     _normalise_advanced,
@@ -26,11 +29,14 @@ from custom_components.ha_reminder.const import (
     CONF_RECURRENCE_REFERENCE,
     CONF_SCHEDULE_TYPE,
     CONF_START_DATE,
+    CONF_WEEKDAYS,
     DOMAIN,
     PERIOD_EXACT,
     REFERENCE_COMPLETION,
+    SCHEDULE_DAILY,
     SCHEDULE_EVERY_DAYS,
     SCHEDULE_ONCE,
+    SCHEDULE_WEEKDAYS,
     SCHEDULE_WEEKLY,
 )
 from custom_components.ha_reminder.manager import ReminderManager
@@ -39,11 +45,13 @@ from custom_components.ha_reminder.runtime import ReminderSubentry
 from custom_components.ha_reminder.sensor import (
     AdvancedNextOccurrenceSensor,
     AdvancedNotificationLevelSensor,
+    AdvancedRecipientsSensor,
     AdvancedStatusSensor,
     DeliveryChannelsSensor,
     NextReminderSensor,
     PendingRemindersSensor,
 )
+from custom_components.ha_reminder.storage import ReminderStore
 from custom_components.ha_reminder.switch import (
     AdvancedCompletedTodaySwitch,
     AdvancedReminderSwitch,
@@ -87,7 +95,6 @@ def test_config_schemas_and_cross_field_validation() -> None:
     assert _schema(defaults).schema
     assert _person_options_schema(defaults).schema
     assert _advanced_schema({}, ["person.jane"]).schema
-    assert _advanced_details_schema({}, include_all=True).schema
 
     base = {
         "title": " ",
@@ -246,10 +253,8 @@ async def test_person_reconfigure_and_advanced_flow_paths() -> None:
     assert create.call_args.kwargs["title"] == "Daily reminder"
 
     detailed = dict(direct, title="Exact reminder", time_period="exact")
-    with patch.object(advanced_flow, "async_show_form", return_value={}) as show:
-        await advanced_flow.async_step_user(detailed)
     with patch.object(advanced_flow, "async_create_entry", return_value={}) as create:
-        await advanced_flow.async_step_advanced_details({"exact_time": "08:00"})
+        await advanced_flow.async_step_user(dict(detailed, exact_time="08:00"))
     assert create.call_args.kwargs["title"] == "Exact reminder"
 
     advanced_flow._get_reconfigure_subentry = Mock(return_value=None)
@@ -382,7 +387,7 @@ async def test_todo_mutations_keep_uid_and_notify(hass) -> None:
     assert changed.await_count == 3
 
 
-def test_entity_views_and_listener_cleanup(hass) -> None:
+def test_entity_views_and_listener_cleanup() -> None:
     """Person and advanced entities expose manager values and unregister safely."""
     reminder = Reminder(
         "uid", "rid", "Task", "Description", None,
@@ -429,11 +434,25 @@ def test_entity_views_and_listener_cleanup(hass) -> None:
         status="active",
         next_occurrence_at=dt_util.utcnow(),
         notification_level="high",
+        data={"recipients": ["person.jane", "person.igor"]},
+        hass=SimpleNamespace(
+            states=SimpleNamespace(
+                get=lambda entity_id: SimpleNamespace(
+                    attributes={"friendly_name": entity_id.split(".", 1)[1].title()}
+                )
+            )
+        ),
         async_add_listener=Mock(return_value=lambda: None),
     )
     assert AdvancedStatusSensor(advanced).native_value == "active"
     assert AdvancedNextOccurrenceSensor(advanced).native_value
     assert AdvancedNotificationLevelSensor(advanced).native_value == "high"
+    recipients = AdvancedRecipientsSensor(advanced)
+    assert recipients.native_value == "Jane, Igor"
+    assert recipients.extra_state_attributes == {
+        "recipient_count": 2,
+        "recipient_entity_ids": ["person.jane", "person.igor"],
+    }
 
 
 @pytest.mark.asyncio
@@ -540,4 +559,110 @@ async def test_advanced_store_load_fills_new_fields(hass) -> None:
     assert store.data["generation"] == 0
     assert store.data["last_status"] == "scheduled"
     assert store.data["completed_on"] is None
+
+
+@pytest.mark.asyncio
+async def test_advanced_manager_state_transitions_and_wakeup(hass) -> None:
+    """Cover advanced enablement, daily completion, wakeups, and listener cleanup."""
+    from tests.test_config_and_todo import _advanced_manager
+
+    manager = _advanced_manager(hass)
+    listener = Mock()
+    remove_listener = manager.async_add_listener(listener)
+    manager.store.data = {
+        "generation": 1,
+        "active": None,
+        "next_occurrence_at": (dt_util.utcnow() + timedelta(minutes=5)).isoformat(),
+        "last_status": "scheduled",
+        "completed_on": None,
+        "configuration": None,
+    }
+    assert manager.device_info["model"] == "Advanced reminder"
+    assert manager.status == "scheduled"
+    assert manager.notification_level == "high"
+    assert manager.next_occurrence_at is not None
+
+    await manager.async_set_completed_today(False)
+    manager.entry.options = {}
+    hass.config_entries.async_update_entry = Mock()
+    await manager.async_set_enabled(False)
+    assert manager.status == "disabled"
+    await manager.async_set_enabled(True)
+    assert manager.status == "scheduled"
+    hass.config_entries.async_update_entry.assert_called_with(
+        manager.entry, options={"enabled": True}
+    )
+
+    manager.store.data["completed_on"] = dt_util.now().date().isoformat()
+    manager.store.data["active"] = {
+        "scheduled_at": dt_util.utcnow().isoformat(),
+        "recipients": {"person.igor": {"next_at": dt_util.utcnow().isoformat()}},
+    }
+    assert manager._next_wakeup() is not None
+    remove_listener()
+    remove_listener()
+    assert listener.call_count == 0
+
+
+def test_advanced_manager_schedule_variants(hass) -> None:
+    """Resolve daily, weekday, and completion-expiring advanced schedules."""
+    from tests.test_config_and_todo import _advanced_manager
+
+    manager = _advanced_manager(hass)
+    reference = dt_util.as_utc(dt_util.as_local(datetime(2026, 10, 19, 10)))
+    manager.data.update({CONF_SCHEDULE_TYPE: SCHEDULE_DAILY, CONF_START_DATE: "2026-10-19"})
+    assert manager._next_schedule(reference) is not None
+    manager.data.update({CONF_SCHEDULE_TYPE: SCHEDULE_WEEKLY, CONF_WEEKDAYS: ["0"]})
+    assert manager._next_schedule(reference) is not None
+    manager.data.update({CONF_SCHEDULE_TYPE: SCHEDULE_WEEKDAYS, CONF_WEEKDAYS: ["1"]})
+    assert manager._next_schedule(reference) is not None
+    manager.data[CONF_SCHEDULE_TYPE] = SCHEDULE_ONCE
+    manager.store.data["active"] = {
+        "scheduled_at": (dt_util.utcnow() - timedelta(days=1)).isoformat(),
+        "recipients": {"person.igor": {"next_at": dt_util.utcnow().isoformat()}},
+    }
+    manager.data["completion_policy"] = "expire_at_end_of_day"
+    manager.store.data["completed_on"] = None
+    assert manager._next_wakeup() is not None
+
+
+@pytest.mark.asyncio
+async def test_integration_service_and_storage_boundaries(hass) -> None:
+    """Exercise the interaction service and the durable store defaults."""
+    manager = SimpleNamespace(async_complete=AsyncMock())
+    hass.data[DOMAIN] = {"advanced_managers": {"advanced-id": manager}}
+    _async_register_services(hass)
+    await hass.services.async_call(
+        DOMAIN,
+        "interact",
+        {"reminder_id": "advanced-id", "interaction": "complete", "occurrence_id": "occ-1"},
+        blocking=True,
+    )
+    await hass.services.async_call(
+        DOMAIN,
+        "interact",
+        {"reminder_id": "advanced-id", "interaction": "snooze"},
+        blocking=True,
+    )
+    manager.async_complete.assert_awaited_once_with("occ-1")
+
+    store = ReminderStore(hass, "person")
+    with patch.object(store._store, "async_load", new=AsyncMock(return_value={"items": {}})):
+        await store.async_load()
+    assert store.data == {"items": {}, "todo_items": [], "generations": {}}
+    with patch.object(store._store, "async_delay_save") as save:
+        store.async_save()
+    save.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_todo_platform_exposes_runtime_todo(hass) -> None:
+    """Forward the manager's to-do entity to Home Assistant's platform."""
+    from custom_components.ha_reminder.todo_platform import async_setup_entry as setup_todo
+
+    todo = Mock()
+    entry = SimpleNamespace(runtime_data=SimpleNamespace(todo=todo))
+    add_entities = Mock()
+    await setup_todo(hass, entry, add_entities)
+    add_entities.assert_called_once_with([todo])
 

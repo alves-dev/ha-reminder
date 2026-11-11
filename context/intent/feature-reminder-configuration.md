@@ -19,6 +19,8 @@ lets users tailor follow-up without changing the task workflow itself.
 - [x] Users can change follow-up and quiet-hour settings.
 - [x] Users receive validation feedback for invalid timing intervals.
 - [x] Users can manage delivery-route assignments.
+- [x] Advanced-reminder configuration shows only fields applicable to the selected options.
+- [x] Advanced-reminder creation requires an explicit recipient selection.
 
 ## Related
 
@@ -27,6 +29,7 @@ lets users tailor follow-up without changing the task workflow itself.
 - [Pattern: Configuration Normalization and Validation](../knowledge/patterns/configuration-normalization-and-validation.md)
 - [Feature: Delivery Channel Testing](feature-delivery-channel-testing.md)
 - [Decision: Subentry-Based Integration Configuration](../decisions/009-subentry-based-integration-configuration.md)
+- [Decision: Conditional Advanced Reminder Form](../decisions/011-conditional-advanced-reminder-form.md)
 
 ## Status
 

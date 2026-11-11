@@ -176,7 +176,7 @@ class ReminderManager:
         if "T" in raw_due or " " in raw_due:
             parsed = datetime.fromisoformat(raw_due)
             return dt_util.as_utc(parsed if parsed.tzinfo else dt_util.as_local(parsed))
-        # Todo date-only values use the specified 09:00 local morning reference.
+        # Date-only values use the specified 09:00 local morning reference.
         local = datetime.combine(date.fromisoformat(raw_due), time.fromisoformat(MORNING_TIME))
         return dt_util.as_utc(dt_util.as_local(local))
 
@@ -189,7 +189,7 @@ class ReminderManager:
         self.store.data["generations"] = self._generations
         self.store.async_save()
         self._schedule_next()
-        for listener in list(self._listeners):
+        for listener in tuple(self._listeners):
             listener()
 
     def _schedule_next(self) -> None:
@@ -470,7 +470,7 @@ class ReminderManager:
                 ),
                 timeout=CHANNEL_TIMEOUT.total_seconds(),
             )
-        except (TimeoutError, Exception) as err:  # Script errors are delivery failures.
+        except Exception as err:  # Script errors are delivery failures.
             _LOGGER.warning(
                 "Reminder channel %s failed: %s: %s", channel_id, type(err).__name__, err
             )

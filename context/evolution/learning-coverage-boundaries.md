@@ -20,6 +20,12 @@ state exposed to Home Assistant and the callback/service contract used to
 mutate it. Treat generated coverage reports as local CI artifacts rather than
 repository content.
 
+The 2026-11-11 expansion confirmed that testing config-entry lifecycle,
+advanced reminder state transitions, service callbacks, storage defaults, and
+platform forwarding raised the package result to 80% without excluding
+production modules. Home Assistant API compatibility tests should run after
+dependency upgrades because flow helper APIs can change between releases.
+
 ## Related
 
 - [Decision: SonarQube Analysis Configuration](../decisions/008-sonarqube-analysis.md)

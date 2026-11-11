@@ -1,5 +1,18 @@
 # Changelog
 
+## [2026.11.0] - 2026-11-11
+
+### Changed
+
+- Replaced the advanced reminder details step with conditional fields in one
+  form, requiring Home Assistant 2026.11 or newer.
+- Advanced reminders no longer select every recipient by default; at least one
+  recipient must be chosen explicitly.
+- Added a direct Home Assistant import button for the notification-channel
+  blueprint. The blueprint now creates a fixed Home Assistant persistent
+  notification instead of asking for a `notify.*` target, and displays the
+  received payload as JSON for inspection.
+
 All user-relevant changes are documented in this file.
 
 ## [2026.10.2] - 2026-10-21

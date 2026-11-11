@@ -22,10 +22,9 @@ continues through its normal follow-up cycles. Newly created reminders require
 an explicit opt-in; legacy configurations preserve their existing persistent
 behavior.
 
-Collect the common reminder definition first, then show a second form with only
-the fields applicable to the chosen schedule, time, and completion policy. This
-is used instead of attempting reactive field enablement in a Home Assistant
-config-flow form.
+Collect the common reminder definition and conditional schedule details in one
+form using Home Assistant Core 2026.11 field visibility. The former two-step
+implementation is superseded by Decision 011.
 
 ## Rationale
 
@@ -50,14 +49,15 @@ The advanced device now has a notification-level sensor and a **Completed
 today** switch. The completion marker is cleared by a midnight scheduler wake-up
 and legacy `low` values are emitted as `normal`. The exact-time option controls
 whether confirmed delivery starts the normal recipient follow-up cycle. The
-advanced form now separates common and schedule-specific inputs as of
-2026-09-02. If a selection has no applicable detail fields, configuration is
-completed directly rather than displaying an empty form.
+advanced form originally separated common and schedule-specific inputs as of
+2026-09-02. That implementation was replaced on 2026-11-11 by the native
+conditional-field form described in Decision 011.
 
 ## Related
 
 - [Feature: Advanced Reminder Devices](../intent/feature-advanced-reminder-devices.md)
 - [Decision: Advanced Reminder Runtime Architecture](006-advanced-reminder-runtime-architecture.md)
+- [Decision: Conditional Advanced Reminder Form](011-conditional-advanced-reminder-form.md)
 - [Pattern: Serialized Reminder Scheduling](../knowledge/patterns/serialized-reminder-scheduling.md)
 - [Pattern: Manager-Backed Platform Entities](../knowledge/patterns/manager-backed-platform-entities.md)
 - [Learning: Local-Day Completion State](../evolution/learning-local-day-completion-state.md)

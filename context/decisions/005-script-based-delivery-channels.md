@@ -19,9 +19,9 @@ Call the script's own service name, derived from its `script.*` entity ID, when
 waiting for the response. Do not call `script.turn_on`: that action starts work
 in the background and cannot return the script's response mapping.
 
-Provide a script blueprint for the standard case of sending to a selected
-`notify` entity. The blueprint renders the reminder payload, marks manual
-tests, and returns `success: true` only after Home Assistant accepts the notify
+Provide a script blueprint for a built-in Home Assistant persistent
+notification. The blueprint renders the reminder payload, marks manual tests,
+and returns `success: true` only after Home Assistant accepts the notification
 action.
 
 ## Rationale
@@ -45,9 +45,10 @@ Manual channel tests invoke only the selected script with the normal response
 contract plus an `is_test` flag. They share invocation safeguards but do not
 enter the reminder scheduling or fallback lifecycle.
 
-The bundled script blueprint selects one notify entity, displays a distinct
-manual-test notification, and returns the required boolean response after Home
-Assistant accepts the notification action. YAML parsing, the full unit suite,
+The bundled script blueprint creates a persistent Home Assistant notification,
+displays a distinct manual-test notification, includes high and critical
+reminder levels in the notification title, and returns the required boolean
+response after Home Assistant accepts the notification action. YAML parsing, the full unit suite,
 lint, compilation, and integration-structure validation pass.
 
 Both person and advanced dispatchers call the response-capable named script

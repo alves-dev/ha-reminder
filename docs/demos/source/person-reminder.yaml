@@ -1,0 +1,51 @@
+name: person-reminder
+description: Add a person reminder list and show the saved configuration.
+output: person-reminder
+
+viewport:
+  width: 1280
+  height: 720
+
+steps:
+  - goto: /config/integrations/integration/ha_reminder
+  - wait: 1800
+  - click:
+      role: button
+      name: Add person reminder list
+  - wait: 1500
+  - assert:
+      text: "Person reminders"
+  - click:
+      role: button
+      name: "Person Select an entity *"
+  - wait: 1200
+  - click:
+      text: Maggie
+  - wait: 1200
+  - fill:
+      selector: input[name="intervals"]
+      value: 15m, 30m, 1h
+  - wait: 900
+  - fill:
+      selector: input[name="quiet_start"]
+      value: "22:00"
+  - wait: 700
+  - fill:
+      selector: input[name="quiet_end"]
+      value: "07:00"
+  - wait: 700
+  - fill:
+      selector: 'input[type="number"] >> nth=0'
+      value: "5"
+  - wait: 700
+  - fill:
+      selector: 'input[type="number"] >> nth=1'
+      value: "2"
+  - wait: 1200
+  - click:
+      role: button
+      name: Submit
+  - wait: 2200
+  - assert:
+      text: "Created configuration for"
+  - screenshot: final

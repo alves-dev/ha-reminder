@@ -1,5 +1,39 @@
 # Changelog
 
+# 2026-11-11
+
+- Fixed test discovery by declaring the repository root on pytest's Python path.
+- Updated advanced config schemas for the Home Assistant 2026.10 flow API and
+  expanded boundary coverage to 80% across 46 tests.
+- Removed Sonar-reported redundant exception/list handling and an obsolete TODO marker.
+- Added the first README demo GIF showing the person-reminder setup flow.
+- Added a demo GIF showing advanced-reminder creation and its device sensors.
+- Added a demo GIF showing notification-channel script creation from the blueprint,
+  linking it to a person, and running the channel test.
+- Replaced the advanced-reminder details step with Home Assistant 2026.11
+  conditional fields in one form.
+- Raised the minimum Home Assistant version to 2026.11.0.
+- Advanced reminder recipients now start unselected and must be chosen
+  explicitly.
+- Added a sensor on each advanced reminder device showing its selected
+  recipients.
+- Added a direct blueprint import button and made the bundled script use a fixed
+  Home Assistant persistent notification while exposing high and critical
+  reminder levels in notification titles.
+- The persistent notification now includes the received reminder payload as
+  formatted JSON for troubleshooting and customization.
+
+# 2026-11-11
+
+- Migrated the local Home Assistant helpers to the shared Docker container
+  workflow and aligned the repository documentation with the Marketplace
+  installation and development environment standards.
+
+# 2026-10-26
+
+- Updated the README to reflect that HA Reminder is available in the default HACS catalog.
+
+
 # 2026-10-21
 
 - Clarified the progressive-interval descriptions: the first interval schedules the first

@@ -33,6 +33,7 @@ async def async_setup_entry(
                 AdvancedStatusSensor(manager),
                 AdvancedNextOccurrenceSensor(manager),
                 AdvancedNotificationLevelSensor(manager),
+                AdvancedRecipientsSensor(manager),
             ],
             config_subentry_id=manager.entry.entry_id,
         )
@@ -163,3 +164,41 @@ class AdvancedNotificationLevelSensor(_AdvancedBaseSensor):
     @property
     def native_value(self) -> str:
         return self.manager.notification_level
+
+
+class AdvancedRecipientsSensor(_AdvancedBaseSensor):
+    """Expose the people selected for an advanced reminder."""
+
+    _attr_translation_key = "advanced_recipients"
+    _attr_icon = "mdi:account-multiple-outline"
+
+    def __init__(self, manager: AdvancedReminderManager) -> None:
+        super().__init__(manager)
+        self._attr_unique_id = f"{manager.entry.entry_id}_advanced_recipients"
+
+    @property
+    def _recipient_entity_ids(self) -> list[str]:
+        """Return configured person entity IDs in their configured order."""
+        return [str(person) for person in self.manager.data.get("recipients", [])]
+
+    @property
+    def native_value(self) -> str:
+        """Return configured recipient names as a readable value."""
+        names = []
+        for entity_id in self._recipient_entity_ids:
+            state = self.manager.hass.states.get(entity_id)
+            names.append(
+                state.attributes.get("friendly_name", entity_id)
+                if state
+                else entity_id
+            )
+        return ", ".join(names)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Expose stable IDs and the selected-recipient count for automations."""
+        recipients = self._recipient_entity_ids
+        return {
+            "recipient_count": len(recipients),
+            "recipient_entity_ids": recipients,
+        }

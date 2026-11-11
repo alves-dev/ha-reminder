@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 import voluptuous as vol
-from homeassistant import config_entries
+from homeassistant import config_entries, data_entry_flow
 from homeassistant.core import callback
 from homeassistant.helpers import selector
 
@@ -104,7 +104,7 @@ def _normalise(values: dict[str, Any]) -> dict[str, Any]:
 
 
 def _advanced_schema(defaults: dict[str, Any], people: list[str]) -> vol.Schema:
-    """Build the common fields for an advanced-reminder form."""
+    """Build the advanced-reminder form with conditionally visible fields."""
     level = defaults.get(CONF_LEVEL, LEVEL_NORMAL)
     if level == "low":
         level = LEVEL_NORMAL
@@ -112,9 +112,9 @@ def _advanced_schema(defaults: dict[str, Any], people: list[str]) -> vol.Schema:
         selector.SelectOptionDict(value=person, label=person.split(".", 1)[-1].replace("_", " ").title())
         for person in people
     ]
-    return vol.Schema({
+    schema: dict[Any, Any] = {
         vol.Required("title", default=defaults.get("title", "")): str,
-        vol.Required(CONF_RECIPIENTS, default=defaults.get(CONF_RECIPIENTS, people)): selector.SelectSelector(selector.SelectSelectorConfig(options=people_options, multiple=True)),
+        vol.Required(CONF_RECIPIENTS, default=defaults.get(CONF_RECIPIENTS, [])): selector.SelectSelector(selector.SelectSelectorConfig(options=people_options, multiple=True)),
         vol.Required(CONF_LEVEL, default=level): selector.SelectSelector(selector.SelectSelectorConfig(options=[
             selector.SelectOptionDict(value=LEVEL_NORMAL, label="Normal"),
             selector.SelectOptionDict(value=LEVEL_HIGH, label="High"),
@@ -139,24 +139,21 @@ def _advanced_schema(defaults: dict[str, Any], people: list[str]) -> vol.Schema:
             selector.SelectOptionDict(value=COMPLETION_UNTIL, label="Keep reminding until completed"),
         ])),
         vol.Required(CONF_ENABLED, default=defaults.get(CONF_ENABLED, True)): selector.BooleanSelector(),
-    })
-
-
-def _advanced_details_schema(values: dict[str, Any], *, include_all: bool = False) -> vol.Schema:
-    """Build only the advanced fields that apply to the selected schedule."""
-    schema: dict[Any, Any] = {}
-    if include_all or values.get(CONF_TIME_PERIOD) == PERIOD_EXACT:
-        schema[vol.Required(
-            CONF_EXACT_TIME, default=values.get(CONF_EXACT_TIME, MORNING_TIME)
-        )] = selector.TimeSelector()
-        schema[vol.Required(
+        _conditional_required(
+            CONF_EXACT_TIME,
+            defaults.get(CONF_EXACT_TIME, MORNING_TIME),
+            {"field": CONF_TIME_PERIOD, "value": PERIOD_EXACT},
+        ): selector.TimeSelector(),
+        _conditional_required(
             CONF_CONTINUE_AFTER_EXACT_TIME,
-            default=values.get(CONF_CONTINUE_AFTER_EXACT_TIME, False),
-        )] = selector.BooleanSelector()
-    if include_all or values.get(CONF_SCHEDULE_TYPE) == SCHEDULE_WEEKDAYS:
-        schema[vol.Required(
-            CONF_WEEKDAYS, default=values.get(CONF_WEEKDAYS, [])
-        )] = selector.SelectSelector(
+            defaults.get(CONF_CONTINUE_AFTER_EXACT_TIME, False),
+            {"field": CONF_TIME_PERIOD, "value": PERIOD_EXACT},
+        ): selector.BooleanSelector(),
+        _conditional_required(
+            CONF_WEEKDAYS,
+            defaults.get(CONF_WEEKDAYS, []),
+            {"field": CONF_SCHEDULE_TYPE, "value": SCHEDULE_WEEKDAYS},
+        ): selector.SelectSelector(
             selector.SelectSelectorConfig(
                 options=[
                     selector.SelectOptionDict(value="0", label="Monday"),
@@ -169,18 +166,19 @@ def _advanced_details_schema(values: dict[str, Any], *, include_all: bool = Fals
                 ],
                 multiple=True,
             )
-        )
-    if include_all or values.get(CONF_SCHEDULE_TYPE) == SCHEDULE_EVERY_DAYS:
-        schema[vol.Required(
-            CONF_INTERVAL_DAYS, default=values.get(CONF_INTERVAL_DAYS, 1)
-        )] = selector.NumberSelector(
+        ),
+        _conditional_required(
+            CONF_INTERVAL_DAYS,
+            defaults.get(CONF_INTERVAL_DAYS, 1),
+            {"field": CONF_SCHEDULE_TYPE, "value": SCHEDULE_EVERY_DAYS},
+        ): selector.NumberSelector(
             selector.NumberSelectorConfig(min=1, max=3650, mode=selector.NumberSelectorMode.BOX)
-        )
-    if include_all or values.get(CONF_COMPLETION_POLICY) == COMPLETION_UNTIL:
-        schema[vol.Required(
+        ),
+        _conditional_required(
             CONF_RECURRENCE_REFERENCE,
-            default=values.get(CONF_RECURRENCE_REFERENCE, REFERENCE_SCHEDULE),
-        )] = selector.SelectSelector(
+            defaults.get(CONF_RECURRENCE_REFERENCE, REFERENCE_SCHEDULE),
+            {"field": CONF_COMPLETION_POLICY, "value": COMPLETION_UNTIL},
+        ): selector.SelectSelector(
             selector.SelectSelectorConfig(
                 options=[
                     selector.SelectOptionDict(
@@ -192,8 +190,19 @@ def _advanced_details_schema(values: dict[str, Any], *, include_all: bool = Fals
                     ),
                 ]
             )
-        )
+        ),
+    }
     return vol.Schema(schema)
+
+
+def _conditional_required(
+    key: str, default: Any, visible: dict[str, str]
+) -> Any:
+    """Build a conditional field across Home Assistant flow API versions."""
+    required = data_entry_flow.Required
+    if getattr(required, "__module__", "") != "typing":
+        return required(key, default=default, visible=visible)
+    return vol.Required(key, default=default)
 
 
 def _normalise_advanced(values: dict[str, Any]) -> dict[str, Any]:
@@ -211,10 +220,19 @@ def _normalise_advanced(values: dict[str, Any]) -> dict[str, Any]:
     if result[CONF_SCHEDULE_TYPE] == SCHEDULE_WEEKDAYS and not result[CONF_WEEKDAYS]:
         raise vol.Invalid("missing_weekdays")
     result[CONF_WEEKDAYS] = [str(day) for day in result[CONF_WEEKDAYS]]
+    if result[CONF_SCHEDULE_TYPE] != SCHEDULE_WEEKDAYS:
+        result[CONF_WEEKDAYS] = []
     result[CONF_INTERVAL_DAYS] = int(result[CONF_INTERVAL_DAYS])
+    if result[CONF_SCHEDULE_TYPE] != SCHEDULE_EVERY_DAYS:
+        result[CONF_INTERVAL_DAYS] = 1
     result[CONF_CONTINUE_AFTER_EXACT_TIME] = bool(
         result.get(CONF_CONTINUE_AFTER_EXACT_TIME, False)
     )
+    if result[CONF_TIME_PERIOD] != PERIOD_EXACT:
+        result[CONF_EXACT_TIME] = MORNING_TIME
+        result[CONF_CONTINUE_AFTER_EXACT_TIME] = False
+    if result[CONF_COMPLETION_POLICY] != COMPLETION_UNTIL:
+        result[CONF_RECURRENCE_REFERENCE] = REFERENCE_SCHEDULE
     if result[CONF_LEVEL] == "low":
         result[CONF_LEVEL] = LEVEL_NORMAL
     return result
@@ -350,74 +368,25 @@ class ReminderSubentryFlow(config_entries.ConfigSubentryFlow):
             return self.async_abort(reason="no_configured_people")
         defaults = dict(current.data) if current else {}
         if user_input:
-            self._advanced_values = {**defaults, **user_input}
-            self._advanced_reconfigure = reconfigure
-            details_schema = _advanced_details_schema(self._advanced_values)
-            if not details_schema.schema:
-                try:
-                    data = _normalise_advanced(self._advanced_values)
-                except vol.Invalid as err:
-                    return self.async_show_form(
-                        step_id="reconfigure" if current else "user",
-                        data_schema=_advanced_schema(defaults, people),
-                        errors={"base": str(err)},
-                    )
-                data[CONF_ENTRY_TYPE] = ENTRY_TYPE_ADVANCED
-                if current:
-                    return self.async_update_and_abort(
-                        entry, current, title=data["title"].strip(), data=data
-                    )
-                return self.async_create_entry(title=data["title"].strip(), data=data)
-            return await self._async_step_advanced_details(
-                entry, current, reconfigure=reconfigure
-            )
+            values = {**defaults, **user_input}
+            try:
+                data = _normalise_advanced(values)
+            except vol.Invalid as err:
+                return self.async_show_form(
+                    step_id="reconfigure" if current else "user",
+                    data_schema=_advanced_schema(defaults, people),
+                    errors={"base": str(err)},
+                )
+            data[CONF_ENTRY_TYPE] = ENTRY_TYPE_ADVANCED
+            if current:
+                return self.async_update_and_abort(
+                    entry, current, title=data["title"].strip(), data=data
+                )
+            return self.async_create_entry(title=data["title"].strip(), data=data)
         return self.async_show_form(
             step_id="reconfigure" if current else "user",
             data_schema=_advanced_schema(defaults, people),
         )
-
-    async def async_step_advanced_details(
-        self, user_input: dict[str, Any] | None = None
-    ) -> config_entries.SubentryFlowResult:
-        """Resume advanced setup after Home Assistant submits the detail form."""
-        entry = self._get_entry()
-        reconfigure = self._advanced_reconfigure
-        current = self._get_reconfigure_subentry() if reconfigure else None
-        return await self._async_step_advanced_details(
-            entry, current, reconfigure=reconfigure, user_input=user_input
-        )
-
-    async def _async_step_advanced_details(
-        self,
-        entry: config_entries.ConfigEntry,
-        current: config_entries.ConfigSubentry | None,
-        *,
-        reconfigure: bool,
-        user_input: dict[str, Any] | None = None,
-    ) -> config_entries.SubentryFlowResult:
-        """Collect the fields applicable to the chosen advanced schedule."""
-        values = self._advanced_values
-        errors: dict[str, str] = {}
-        if user_input:
-            values = {**values, **user_input}
-            self._advanced_values = values
-            try:
-                data = _normalise_advanced(values)
-            except vol.Invalid as err:
-                errors["base"] = str(err)
-            else:
-                data[CONF_ENTRY_TYPE] = ENTRY_TYPE_ADVANCED
-                if current:
-                    return self.async_update_and_abort(
-                        entry, current, title=data["title"].strip(), data=data
-                    )
-                return self.async_create_entry(title=data["title"].strip(), data=data)
-        return self.async_show_form(
-            step_id="advanced_details",
-            data_schema=_advanced_details_schema(values),
-            errors=errors,
-        )
-
 
     def _get_person_subentry(self) -> config_entries.ConfigSubentry:
         """Return the person subentry currently being reconfigured."""

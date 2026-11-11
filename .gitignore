@@ -10,3 +10,4 @@ config/
 *.log
 .storage/
 .env
+.idea/
