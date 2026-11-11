@@ -50,6 +50,10 @@ delivery-channel count:
 
 ![HA Reminder person device](docs/images/ha-reminder-device.png)
 
+The first setup flow is also captured in this short demo:
+
+![Add a person reminder](docs/demos/generated/person-reminder.gif)
+
 ## Marketplace availability
 
 This integration is available in Marketplace's default catalog. In Home Assistant, open
