@@ -1,0 +1,73 @@
+name: notification-channel-script
+description: Create the notification-channel script, link it to a person, and test it.
+output: notification-channel-script
+
+viewport:
+  width: 1280
+  height: 720
+
+steps:
+  - goto: /config/script
+  - wait: 1400
+  - click:
+      role: button
+      name: /Create script/
+  - wait: 900
+  - click:
+      selector: 'ha-dialog-new-automation ha-list-item:has-text("HA Reminder notification channel")'
+  - wait: 1200
+  - click:
+      role: button
+      name: Save
+  - wait: 700
+  - fill:
+      placeholder: New script
+      value: HA Reminder demo channel 7
+  - wait: 700
+  - click:
+      selector: 'ha-dialog-footer button >> nth=1'
+  - wait: 1800
+  - assert:
+      text: HA Reminder demo channel 7
+  - goto: /config/integrations/integration/ha_reminder
+  - wait: 1500
+  - click:
+      selector: 'ha-list-item-base:has-text("Reminders — Homer") button[aria-label="Reconfigure person reminder list"]'
+  - wait: 1000
+  - click:
+      text: Add notification channel
+  - wait: 1000
+  - click:
+      role: button
+      name: Select an entity *
+  - wait: 900
+  - click:
+      text: HA Reminder demo channel 7
+  - wait: 900
+  - fill:
+      selector: input[name="name"]
+      value: Demo phone channel 7
+  - wait: 800
+  - click:
+      role: button
+      name: Submit
+  - wait: 1800
+  - assert:
+      text: Success
+  - wait: 1000
+  - click:
+      selector: 'ha-dialog-footer button >> nth=0'
+  - wait: 1500
+  - click:
+      selector: 'ha-list-item-base:has-text("Reminders — Homer") button[aria-label="Reconfigure person reminder list"]'
+  - wait: 900
+  - click:
+      text: Test notification channel
+  - wait: 1000
+  - click:
+      role: button
+      name: Submit
+  - wait: 1800
+  - assert:
+      text: "Success: the script confirmed delivery."
+  - screenshot: final

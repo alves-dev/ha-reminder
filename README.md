@@ -58,6 +58,10 @@ Creating an advanced reminder and viewing its device sensors:
 
 ![Advanced reminder device sensors](docs/demos/generated/advanced-reminder-sensors.gif)
 
+Creating a notification-channel script from the blueprint, linking it to a person, and testing it:
+
+![Notification channel script](docs/demos/generated/notification-channel-script.gif)
+
 ## Marketplace availability
 
 This integration is available in Marketplace's default catalog. In Home Assistant, open
