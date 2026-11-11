@@ -1,7 +1,7 @@
 # HA Reminder
 
-![Version](https://img.shields.io/badge/Version-2026.10.2-41BDF5?style=flat-square)
-![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2025.12%2B-41BDF5?logo=homeassistant)
+![Version](https://img.shields.io/badge/Version-2026.11.0-41BDF5?style=flat-square)
+![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2026.11%2B-41BDF5?logo=homeassistant)
 ![Marketplace](https://img.shields.io/badge/Marketplace-Default%20Repository-18BC9C?style=flat-square)
 [![Quality Gate](https://sonar.alves-dev.com/api/project_badges/measure?project=ha-reminder&metric=alert_status)](https://sonar.alves-dev.com/dashboard?id=ha-reminder)
 [![Coverage](https://sonar.alves-dev.com/api/project_badges/measure?project=ha-reminder&metric=coverage)](https://sonar.alves-dev.com/dashboard?id=ha-reminder)

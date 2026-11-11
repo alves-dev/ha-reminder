@@ -2,6 +2,16 @@
 
 # 2026-11-11
 
+- Replaced the advanced-reminder details step with Home Assistant 2026.11
+  conditional fields in one form.
+- Raised the minimum Home Assistant version to 2026.11.0.
+- Advanced reminder recipients now start unselected and must be chosen
+  explicitly.
+- Added a sensor on each advanced reminder device showing its selected
+  recipients.
+
+# 2026-11-11
+
 - Migrated the local Home Assistant helpers to the shared Docker container
   workflow and aligned the repository documentation with the Marketplace
   installation and development environment standards.

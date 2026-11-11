@@ -24,6 +24,7 @@ reminders visible and controllable without weakening the simple list workflow.
 - [x] Completion, expiration, disablement, editing and restart cancel stale
   delivery work safely.
 - [x] The device shows its notification level and does not offer a low level.
+- [x] The device shows the selected recipients for the advanced reminder.
 - [x] A daily completion switch suppresses the reminder for the current local
   day and resets automatically at midnight.
 - [x] The advanced form can keep alerts going after an exact scheduled time

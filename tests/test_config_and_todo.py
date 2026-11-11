@@ -14,7 +14,7 @@ from custom_components.ha_reminder.advanced import AdvancedReminderManager
 from custom_components.ha_reminder.config_flow import (
     ConfigFlow,
     ReminderSubentryFlow,
-    _advanced_details_schema,
+    _advanced_schema,
     _normalise,
     _normalise_advanced,
 )
@@ -203,36 +203,20 @@ async def test_add_channel_updates_the_person_subentry() -> None:
     }
 
 
-def test_advanced_details_schema_only_includes_relevant_fields() -> None:
-    """Schedule details do not expose inputs that cannot affect the reminder."""
-    exact_weekdays = _advanced_details_schema(
-        {
-            "time_period": "exact",
-            "schedule_type": "weekdays",
-            "completion_policy": "until_completed",
-        }
-    )
-    morning_interval = _advanced_details_schema(
-        {"time_period": "morning", "schedule_type": "every_days"}
-    )
-    no_details = _advanced_details_schema(
-        {
-            "time_period": "morning",
-            "schedule_type": "daily",
-            "completion_policy": "expire_at_end_of_day",
-        }
-    )
-
-    exact_weekdays_keys = {field.schema for field in exact_weekdays.schema}
-    morning_interval_keys = {field.schema for field in morning_interval.schema}
-    assert exact_weekdays_keys == {
+def test_advanced_schema_contains_conditional_fields() -> None:
+    """The single advanced form contains all conditional fields."""
+    schema = _advanced_schema({}, ["person.jane"])
+    keys = {field.schema for field in schema.schema}
+    assert {
         "exact_time",
         "continue_after_exact_time",
         "weekdays",
+        "interval_days",
         "recurrence_reference",
-    }
-    assert morning_interval_keys == {"interval_days"}
-    assert not no_details.schema
+    } <= keys
+
+    recipients = next(field for field in schema.schema if field.schema == "recipients")
+    assert recipients.default() == []
 
 
 @pytest.mark.asyncio

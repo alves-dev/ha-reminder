@@ -17,7 +17,8 @@ the container. See `docs/local-home-assistant.md` for the shared environment det
 
 ## Code Style
 
-- Use Python 3.13 and asynchronous Home Assistant APIs.
+- Use Python 3.14.2+ and asynchronous Home Assistant APIs. Home Assistant
+  2026.11 requires that runtime.
 - Keep lines at or below 100 characters where practical; Ruff enforces the
   configured lint rules.
 - Use type annotations, module and public-member docstrings, and `async_` names

@@ -13,7 +13,6 @@ from custom_components.ha_reminder.advanced import AdvancedReminderStore
 from custom_components.ha_reminder.config_flow import (
     ConfigFlow,
     ReminderSubentryFlow,
-    _advanced_details_schema,
     _advanced_schema,
     _normalise,
     _normalise_advanced,
@@ -39,6 +38,7 @@ from custom_components.ha_reminder.runtime import ReminderSubentry
 from custom_components.ha_reminder.sensor import (
     AdvancedNextOccurrenceSensor,
     AdvancedNotificationLevelSensor,
+    AdvancedRecipientsSensor,
     AdvancedStatusSensor,
     DeliveryChannelsSensor,
     NextReminderSensor,
@@ -87,7 +87,6 @@ def test_config_schemas_and_cross_field_validation() -> None:
     assert _schema(defaults).schema
     assert _person_options_schema(defaults).schema
     assert _advanced_schema({}, ["person.jane"]).schema
-    assert _advanced_details_schema({}, include_all=True).schema
 
     base = {
         "title": " ",
@@ -246,10 +245,8 @@ async def test_person_reconfigure_and_advanced_flow_paths() -> None:
     assert create.call_args.kwargs["title"] == "Daily reminder"
 
     detailed = dict(direct, title="Exact reminder", time_period="exact")
-    with patch.object(advanced_flow, "async_show_form", return_value={}) as show:
-        await advanced_flow.async_step_user(detailed)
     with patch.object(advanced_flow, "async_create_entry", return_value={}) as create:
-        await advanced_flow.async_step_advanced_details({"exact_time": "08:00"})
+        await advanced_flow.async_step_user(dict(detailed, exact_time="08:00"))
     assert create.call_args.kwargs["title"] == "Exact reminder"
 
     advanced_flow._get_reconfigure_subentry = Mock(return_value=None)
@@ -382,7 +379,7 @@ async def test_todo_mutations_keep_uid_and_notify(hass) -> None:
     assert changed.await_count == 3
 
 
-def test_entity_views_and_listener_cleanup(hass) -> None:
+def test_entity_views_and_listener_cleanup() -> None:
     """Person and advanced entities expose manager values and unregister safely."""
     reminder = Reminder(
         "uid", "rid", "Task", "Description", None,
@@ -429,11 +426,25 @@ def test_entity_views_and_listener_cleanup(hass) -> None:
         status="active",
         next_occurrence_at=dt_util.utcnow(),
         notification_level="high",
+        data={"recipients": ["person.jane", "person.igor"]},
+        hass=SimpleNamespace(
+            states=SimpleNamespace(
+                get=lambda entity_id: SimpleNamespace(
+                    attributes={"friendly_name": entity_id.split(".", 1)[1].title()}
+                )
+            )
+        ),
         async_add_listener=Mock(return_value=lambda: None),
     )
     assert AdvancedStatusSensor(advanced).native_value == "active"
     assert AdvancedNextOccurrenceSensor(advanced).native_value
     assert AdvancedNotificationLevelSensor(advanced).native_value == "high"
+    recipients = AdvancedRecipientsSensor(advanced)
+    assert recipients.native_value == "Jane, Igor"
+    assert recipients.extra_state_attributes == {
+        "recipient_count": 2,
+        "recipient_entity_ids": ["person.jane", "person.igor"],
+    }
 
 
 @pytest.mark.asyncio

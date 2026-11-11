@@ -177,7 +177,19 @@
                         "title": "Reminder name", "recipients": "Recipients", "level": "Notification level",
                         "schedule_type": "Schedule", "start_date": "Start date", "time_period": "Time",
                         "completion_policy": "Completion policy",
-                        "enabled": "Enabled"
+                        "enabled": "Enabled",
+                        "exact_time": "Exact time",
+                        "continue_after_exact_time": "Continue reminder alerts after the exact time",
+                        "weekdays": "Weekdays",
+                        "interval_days": "Every number of days",
+                        "recurrence_reference": "Recurrence reference"
+                    },
+                    "data_description": {
+                        "exact_time": "Used only when Time is set to Exact time.",
+                        "continue_after_exact_time": "Keep using follow-up intervals after the exact time until the occurrence is completed or expires at the end of the day.",
+                        "weekdays": "Required when Schedule is Selected weekdays.",
+                        "interval_days": "Used only when Schedule is Every number of days.",
+                        "recurrence_reference": "Completion-based recurrence is available only for reminders that continue until completion."
                     }
                 },
                 "reconfigure": {
@@ -186,18 +198,19 @@
                         "title": "Reminder name", "recipients": "Recipients", "level": "Notification level",
                         "schedule_type": "Schedule", "start_date": "Start date", "time_period": "Time",
                         "completion_policy": "Completion policy",
-                        "enabled": "Enabled"
-                    }
-                },
-                "advanced_details": {
-                    "title": "Advanced reminder: schedule details",
-                    "description": "Only fields that apply to the selected schedule and time are shown.",
-                    "data": {
+                        "enabled": "Enabled",
                         "exact_time": "Exact time",
                         "continue_after_exact_time": "Continue reminder alerts after the exact time",
                         "weekdays": "Weekdays",
                         "interval_days": "Every number of days",
                         "recurrence_reference": "Recurrence reference"
+                    },
+                    "data_description": {
+                        "exact_time": "Used only when Time is set to Exact time.",
+                        "continue_after_exact_time": "Keep using follow-up intervals after the exact time until the occurrence is completed or expires at the end of the day.",
+                        "weekdays": "Required when Schedule is Selected weekdays.",
+                        "interval_days": "Used only when Schedule is Every number of days.",
+                        "recurrence_reference": "Completion-based recurrence is available only for reminders that continue until completion."
                     }
                 }
             }
@@ -308,6 +321,9 @@
             },
             "advanced_notification_level": {
                 "name": "Notification level"
+            },
+            "advanced_recipients": {
+                "name": "Recipients"
             }
         },
         "switch": {
