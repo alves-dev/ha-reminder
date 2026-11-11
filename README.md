@@ -54,6 +54,10 @@ The first setup flow is also captured in this short demo:
 
 ![Add a person reminder](docs/demos/generated/person-reminder.gif)
 
+Creating an advanced reminder and viewing its device sensors:
+
+![Advanced reminder device sensors](docs/demos/generated/advanced-reminder-sensors.gif)
+
 ## Marketplace availability
 
 This integration is available in Marketplace's default catalog. In Home Assistant, open

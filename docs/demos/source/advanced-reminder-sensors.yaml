@@ -1,0 +1,58 @@
+name: advanced-reminder-sensors
+description: Create an advanced reminder and show its device sensors.
+output: advanced-reminder-sensors
+
+viewport:
+  width: 1280
+  height: 720
+
+steps:
+  - goto: /config/integrations/integration/ha_reminder
+  - wait: 1800
+  - click:
+      role: button
+      name: Add advanced reminder device
+  - wait: 1400
+  - fill:
+      selector: input[name="title"]
+      value: Advanced demo sensors 2
+  - wait: 900
+  - click:
+      selector: 'ha-checkbox >> nth=1'
+  - wait: 1000
+  - click:
+      role: radio
+      name: High
+  - wait: 1000
+  - click:
+      selector: 'input[readonly][required]'
+  - wait: 900
+  - click:
+      role: button
+      name: November 11
+  - wait: 1200
+  - click:
+      role: button
+      name: OK
+  - wait: 1200
+  - click:
+      role: button
+      name: Submit
+  - wait: 2200
+  - assert:
+      text: "Created configuration for"
+  - wait: 1800
+  - click:
+      role: button
+      name: Finish
+  - wait: 1800
+  - click:
+      selector: 'ha-list-item-button:has-text("Advanced demo sensors 2")'
+  - wait: 1800
+  - assert:
+      text: Notification level
+  - assert:
+      text: Recipients
+  - assert:
+      text: Status
+  - screenshot: final

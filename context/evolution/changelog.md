@@ -3,6 +3,7 @@
 # 2026-11-11
 
 - Added the first README demo GIF showing the person-reminder setup flow.
+- Added a demo GIF showing advanced-reminder creation and its device sensors.
 - Replaced the advanced-reminder details step with Home Assistant 2026.11
   conditional fields in one form.
 - Raised the minimum Home Assistant version to 2026.11.0.
