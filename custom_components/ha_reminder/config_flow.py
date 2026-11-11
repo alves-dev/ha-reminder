@@ -139,20 +139,20 @@ def _advanced_schema(defaults: dict[str, Any], people: list[str]) -> vol.Schema:
             selector.SelectOptionDict(value=COMPLETION_UNTIL, label="Keep reminding until completed"),
         ])),
         vol.Required(CONF_ENABLED, default=defaults.get(CONF_ENABLED, True)): selector.BooleanSelector(),
-        data_entry_flow.Required(
+        _conditional_required(
             CONF_EXACT_TIME,
-            default=defaults.get(CONF_EXACT_TIME, MORNING_TIME),
-            visible={"field": CONF_TIME_PERIOD, "value": PERIOD_EXACT},
+            defaults.get(CONF_EXACT_TIME, MORNING_TIME),
+            {"field": CONF_TIME_PERIOD, "value": PERIOD_EXACT},
         ): selector.TimeSelector(),
-        data_entry_flow.Required(
+        _conditional_required(
             CONF_CONTINUE_AFTER_EXACT_TIME,
-            default=defaults.get(CONF_CONTINUE_AFTER_EXACT_TIME, False),
-            visible={"field": CONF_TIME_PERIOD, "value": PERIOD_EXACT},
+            defaults.get(CONF_CONTINUE_AFTER_EXACT_TIME, False),
+            {"field": CONF_TIME_PERIOD, "value": PERIOD_EXACT},
         ): selector.BooleanSelector(),
-        data_entry_flow.Required(
+        _conditional_required(
             CONF_WEEKDAYS,
-            default=defaults.get(CONF_WEEKDAYS, []),
-            visible={"field": CONF_SCHEDULE_TYPE, "value": SCHEDULE_WEEKDAYS},
+            defaults.get(CONF_WEEKDAYS, []),
+            {"field": CONF_SCHEDULE_TYPE, "value": SCHEDULE_WEEKDAYS},
         ): selector.SelectSelector(
             selector.SelectSelectorConfig(
                 options=[
@@ -167,17 +167,17 @@ def _advanced_schema(defaults: dict[str, Any], people: list[str]) -> vol.Schema:
                 multiple=True,
             )
         ),
-        data_entry_flow.Required(
+        _conditional_required(
             CONF_INTERVAL_DAYS,
-            default=defaults.get(CONF_INTERVAL_DAYS, 1),
-            visible={"field": CONF_SCHEDULE_TYPE, "value": SCHEDULE_EVERY_DAYS},
+            defaults.get(CONF_INTERVAL_DAYS, 1),
+            {"field": CONF_SCHEDULE_TYPE, "value": SCHEDULE_EVERY_DAYS},
         ): selector.NumberSelector(
             selector.NumberSelectorConfig(min=1, max=3650, mode=selector.NumberSelectorMode.BOX)
         ),
-        data_entry_flow.Required(
+        _conditional_required(
             CONF_RECURRENCE_REFERENCE,
-            default=defaults.get(CONF_RECURRENCE_REFERENCE, REFERENCE_SCHEDULE),
-            visible={"field": CONF_COMPLETION_POLICY, "value": COMPLETION_UNTIL},
+            defaults.get(CONF_RECURRENCE_REFERENCE, REFERENCE_SCHEDULE),
+            {"field": CONF_COMPLETION_POLICY, "value": COMPLETION_UNTIL},
         ): selector.SelectSelector(
             selector.SelectSelectorConfig(
                 options=[
@@ -193,6 +193,16 @@ def _advanced_schema(defaults: dict[str, Any], people: list[str]) -> vol.Schema:
         ),
     }
     return vol.Schema(schema)
+
+
+def _conditional_required(
+    key: str, default: Any, visible: dict[str, str]
+) -> Any:
+    """Build a conditional field across Home Assistant flow API versions."""
+    required = data_entry_flow.Required
+    if getattr(required, "__module__", "") != "typing":
+        return required(key, default=default, visible=visible)
+    return vol.Required(key, default=default)
 
 
 def _normalise_advanced(values: dict[str, Any]) -> dict[str, Any]:

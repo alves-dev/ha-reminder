@@ -346,7 +346,7 @@ class AdvancedReminderManager:
     def _persist_and_schedule(self) -> None:
         self.store.async_save()
         self._schedule_next()
-        for listener in list(self._listeners):
+        for listener in tuple(self._listeners):
             listener()
 
     def _schedule_next(self) -> None:
@@ -471,7 +471,7 @@ class AdvancedReminderManager:
                 if (state := self.hass.states.get(channel["script_entity_id"])) is not None
                 and state.state != STATE_UNAVAILABLE
             ]
-        result, channel_id = await self._async_try_channels(person, data, generation, channels)
+        result, _ = await self._async_try_channels(person, data, generation, channels)
         async with self._lock:
             active = self.store.data["active"]
             if self._stopped or not active or active["generation"] != generation:

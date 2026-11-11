@@ -2,6 +2,10 @@
 
 # 2026-11-11
 
+- Fixed test discovery by declaring the repository root on pytest's Python path.
+- Updated advanced config schemas for the Home Assistant 2026.10 flow API and
+  expanded boundary coverage to 80% across 46 tests.
+- Removed Sonar-reported redundant exception/list handling and an obsolete TODO marker.
 - Added the first README demo GIF showing the person-reminder setup flow.
 - Added a demo GIF showing advanced-reminder creation and its device sensors.
 - Added a demo GIF showing notification-channel script creation from the blueprint,
