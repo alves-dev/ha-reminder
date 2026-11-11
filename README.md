@@ -66,19 +66,20 @@ three sensors.
 
 Create pending items in that to-do list as usual. Completing or deleting an item stops its future deliveries. Configure notification channels through the integration options; each channel is a `script.*` that receives the documented payload and returns `{success: true}` when it has dispatched the message.
 
-For a standard phone or other `notify.*` entity, import the included [notification-channel script blueprint](blueprints/script/ha_reminder/notification_channel.yaml), create a script from it, and select the notification target. Then add that generated `script.*` as a channel in the person's HA Reminder options. The script marks a manual channel test with `is_test: true` and returns the required response after Home Assistant accepts the notification action.
+For a built-in Home Assistant notification, import the included [notification-channel script blueprint](blueprints/script/ha_reminder/notification_channel.yaml), create the script, and add the generated `script.*` as a channel in the person's HA Reminder options. The generated script remains editable, so you can customize its title, message, or notification data. It creates a persistent notification in Home Assistant, includes the received payload as JSON for inspection, marks a manual channel test with `is_test: true`, shows high and critical levels in the title, and returns the required response after Home Assistant accepts the notification action.
 
-For a quick test without a phone, copy the [demo notification channel](examples/ha_reminder_demo_channel.yaml)
-into your Home Assistant `scripts.yaml` (or create an equivalent script in the script editor). It
-creates a persistent notification inside Home Assistant and implements the `{success: true}`
-response expected by HA Reminder, so it can be selected as a delivery channel immediately.
+[![Import HA Reminder notification-channel blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Falves-dev%2Fha-reminder%2Fblob%2Fdevelop%2Fblueprints%2Fscript%2Fha_reminder%2Fnotification_channel.yaml)
+
+The blueprint is also suitable as the default test channel because it creates a persistent
+notification inside Home Assistant and implements the `{success: true}` response expected by
+HA Reminder.
 
 Choose **Add advanced reminder device** on that same page to create a device for a one-time or
 recurring household reminder. Select recipients from the people already configured in HA Reminder,
 define its notification level and schedule, then use its enable and **Completed today**
 switches and device sensors. For an exact time, enable **Continue alerts after exact
-time** to repeat notifications through the day or until completion. The second
-configuration step shows only fields relevant to the selected schedule. Call
+time** to repeat notifications through the day or until completion. The configuration
+form shows only fields relevant to the selected schedule. Call
 `ha_reminder.interact` with `interaction: complete` to complete the active occurrence from an
 automation, script, actionable notification, or another Home Assistant surface. Snooze and
 acknowledgement actions are reserved for a future release.

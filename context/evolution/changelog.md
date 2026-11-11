@@ -9,6 +9,11 @@
   explicitly.
 - Added a sensor on each advanced reminder device showing its selected
   recipients.
+- Added a direct blueprint import button and made the bundled script use a fixed
+  Home Assistant persistent notification while exposing high and critical
+  reminder levels in notification titles.
+- The persistent notification now includes the received reminder payload as
+  formatted JSON for troubleshooting and customization.
 
 # 2026-11-11
 

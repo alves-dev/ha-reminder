@@ -404,6 +404,7 @@ async def test_advanced_delivery_calls_the_response_capable_script_service(
 
     assert async_call.await_args.args[:2] == ("script", "reminder_mobile_igor")
     assert async_call.await_args.args[-1]["reminder_id"] == "occurrence-1"
+    assert async_call.await_args.args[-1]["level"] == "high"
 
 
 @pytest.mark.asyncio
