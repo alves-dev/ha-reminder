@@ -1,5 +1,11 @@
 # Changelog
 
+# 2026-11-12
+
+- Synchronized the development-release cleanup workflow with the canonical
+  Home Assistant integration standards asset, including the explicit repository
+  target for release deletion.
+
 # 2026-11-11
 
 - Refactored person config-flow submission handling to satisfy the Sonar cognitive
